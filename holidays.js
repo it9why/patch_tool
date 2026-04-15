@@ -1,0 +1,106 @@
+// Hong Kong Public Holidays Data for 2024-2026
+// This data can be used offline
+
+const hongKongHolidays = {
+    "2024": [
+        { date: "2024-01-01", name: "New Year's Day" },
+        { date: "2024-02-10", name: "Chinese New Year (Day 1)" },
+        { date: "2024-02-11", name: "Chinese New Year (Day 2)" },
+        { date: "2024-02-12", name: "Chinese New Year (Day 3)" },
+        { date: "2024-03-29", name: "Good Friday" },
+        { date: "2024-03-30", name: "Holy Saturday" },
+        { date: "2024-04-01", name: "Easter Monday" },
+        { date: "2024-04-04", name: "Ching Ming Festival" },
+        { date: "2024-05-01", name: "Labour Day" },
+        { date: "2024-05-15", name: "Buddha's Birthday" },
+        { date: "2024-06-10", name: "Tuen Ng (Dragon Boat) Festival" },
+        { date: "2024-07-01", name: "Hong Kong Special Administrative Region Establishment Day" },
+        { date: "2024-09-18", name: "Day after Mid-Autumn Festival" },
+        { date: "2024-10-01", name: "National Day" },
+        { date: "2024-10-11", name: "Chung Yeung Festival" },
+        { date: "2024-12-25", name: "Christmas Day" },
+        { date: "2024-12-26", name: "Boxing Day" }
+    ],
+    "2025": [
+        { date: "2025-01-01", name: "New Year's Day" },
+        { date: "2025-01-29", name: "Chinese New Year (Day 1)" },
+        { date: "2025-01-30", name: "Chinese New Year (Day 2)" },
+        { date: "2025-01-31", name: "Chinese New Year (Day 3)" },
+        { date: "2025-04-18", name: "Good Friday" },
+        { date: "2025-04-19", name: "Holy Saturday" },
+        { date: "2025-04-21", name: "Easter Monday" },
+        { date: "2025-04-04", name: "Ching Ming Festival" },
+        { date: "2025-05-01", name: "Labour Day" },
+        { date: "2025-05-05", name: "Buddha's Birthday" },
+        { date: "2025-05-31", name: "Tuen Ng (Dragon Boat) Festival" },
+        { date: "2025-07-01", name: "Hong Kong Special Administrative Region Establishment Day" },
+        { date: "2025-10-06", name: "Day after Mid-Autumn Festival" },
+        { date: "2025-10-01", name: "National Day" },
+        { date: "2025-10-30", name: "Chung Yeung Festival" },
+        { date: "2025-12-25", name: "Christmas Day" },
+        { date: "2025-12-26", name: "Boxing Day" }
+    ],
+    "2026": [
+        { date: "2026-01-01", name: "New Year's Day" },
+        { date: "2026-02-17", name: "Chinese New Year (Day 1)" },
+        { date: "2026-02-18", name: "Chinese New Year (Day 2)" },
+        { date: "2026-02-19", name: "Chinese New Year (Day 3)" },
+        { date: "2026-04-03", name: "Good Friday" },
+        { date: "2026-04-04", name: "Holy Saturday" },
+        { date: "2026-04-06", name: "Easter Monday" },
+        { date: "2026-04-05", name: "Ching Ming Festival" },
+        { date: "2026-05-01", name: "Labour Day" },
+        { date: "2026-05-24", name: "Buddha's Birthday" },
+        { date: "2026-06-19", name: "Tuen Ng (Dragon Boat) Festival" },
+        { date: "2026-07-01", name: "Hong Kong Special Administrative Region Establishment Day" },
+        { date: "2026-09-27", name: "Day after Mid-Autumn Festival" },
+        { date: "2026-10-01", name: "National Day" },
+        { date: "2026-10-19", name: "Chung Yeung Festival" },
+        { date: "2026-12-25", name: "Christmas Day" },
+        { date: "2026-12-26", name: "Boxing Day" }
+    ]
+};
+
+// Function to check if a date is a Hong Kong public holiday
+function isHongKongHoliday(date) {
+    const dateString = date.toISOString().split('T')[0];
+    const year = date.getFullYear().toString();
+    
+    if (hongKongHolidays[year]) {
+        return hongKongHolidays[year].some(holiday => holiday.date === dateString);
+    }
+    return false;
+}
+
+// Function to get holiday name for a date
+function getHolidayName(date) {
+    const dateString = date.toISOString().split('T')[0];
+    const year = date.getFullYear().toString();
+    
+    if (hongKongHolidays[year]) {
+        const holiday = hongKongHolidays[year].find(h => h.date === dateString);
+        return holiday ? holiday.name : null;
+    }
+    return null;
+}
+
+// Function to get all holidays for a month
+function getHolidaysForMonth(year, month) {
+    const yearStr = year.toString();
+    if (!hongKongHolidays[yearStr]) return [];
+    
+    return hongKongHolidays[yearStr].filter(holiday => {
+        const holidayDate = new Date(holiday.date);
+        return holidayDate.getFullYear() === year && holidayDate.getMonth() === month;
+    });
+}
+
+// Export for use in script.js
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        hongKongHolidays,
+        isHongKongHoliday,
+        getHolidayName,
+        getHolidaysForMonth
+    };
+}

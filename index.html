@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Scheduler with Calendar</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Icon fallbacks using Unicode characters */
+        .fa-calendar-alt::before { content: "📅"; }
+        .fa-tasks::before { content: "📋"; }
+        .fa-plus::before { content: "➕"; }
+        .fa-calendar-check::before { content: "✅"; }
+        .fa-trash::before { content: "🗑️"; }
+        .fa-calendar-day::before { content: "📆"; }
+        .fa-chevron-left::before { content: "◀"; }
+        .fa-chevron-right::before { content: "▶"; }
+        .fa-list-ol::before { content: "📝"; }
+        .fa-copy::before { content: "📄"; }
+        .fa-save::before { content: "💾"; }
+        .fa-folder-open::before { content: "📂"; }
+        .fa-file-export::before { content: "📤"; }
+        .fa-download::before { content: "⬇️"; }
+        .fa-upload::before { content: "⬆️"; }
+        .fa-calendar-download::before { content: "📥"; }
+        .fa-edit::before { content: "✏️"; }
+        .fa-calendar-edit::before { content: "📅✏️"; }
+        
+        /* Hide the empty Font Awesome icons if Unicode is shown */
+        .fas {
+            font-family: Arial, sans-serif;
+            font-style: normal;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-calendar-alt"></i> Task Scheduler & Calendar Planner</h1>
+            <p class="subtitle">Schedule activities with dependencies, account for Hong Kong public holidays</p>
+        </header>
+
+        <div class="main-content">
+            <section class="input-section card">
+                <h2><i class="fas fa-tasks"></i> Activities Input</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="activityName">Activity Name</label>
+                        <input type="text" id="activityName" placeholder="e.g., Design Review">
+                    </div>
+                    <div class="form-group">
+                        <label for="duration">Duration (days)</label>
+                        <input type="number" id="duration" min="1" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="dependency">Dependencies (Optional)</label>
+                        <select id="dependencies" multiple>
+                            <option value="">None</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="addActivity">&nbsp;</label>
+                        <button id="addActivity" class="btn-primary" type="button"><i class="fas fa-plus"></i> Add Activity</button>
+                    </div>
+                </div>
+
+                <div class="activities-list">
+                    <h3>Activities Added</h3>
+                    <div id="activitiesContainer">
+                        <p class="empty-message">No activities added yet. Add your first activity above.</p>
+                    </div>
+                </div>
+
+                <div class="template-controls">
+                    <h3><i class="fas fa-copy"></i> Activity Templates</h3>
+                    <div class="template-buttons">
+                        <button id="exportTemplate" class="btn-secondary"><i class="fas fa-download"></i> Export Template</button>
+                        <button id="importTemplate" class="btn-secondary"><i class="fas fa-upload"></i> Import Template</button>
+                        <select id="templateSelect">
+                            <option value="">Select a template...</option>
+                        </select>
+                    </div>
+                    <input type="file" id="importTemplateFile" accept=".json" style="display: none;">
+                </div>
+
+                <div class="import-export-controls">
+                    <h3><i class="fas fa-file-export"></i> Import/Export</h3>
+                    <div class="import-export-buttons">
+                        <button id="exportActivities" class="btn-secondary"><i class="fas fa-download"></i> Export Activities</button>
+                        <button id="importActivities" class="btn-secondary"><i class="fas fa-upload"></i> Import Activities</button>
+                        <button id="exportSchedule" class="btn-secondary"><i class="fas fa-calendar-download"></i> Export Schedule</button>
+                        <input type="file" id="importFile" accept=".json" style="display: none;">
+                    </div>
+                </div>
+
+                <div class="schedule-controls">
+                    <div class="form-group">
+                        <label for="startDate">First Activity Start Date</label>
+                        <input type="date" id="startDate">
+                    </div>
+                    <button id="generateSchedule" class="btn-success"><i class="fas fa-calendar-check"></i> Generate Schedule</button>
+                    <button id="clearAll" class="btn-danger"><i class="fas fa-trash"></i> Clear All</button>
+                </div>
+            </section>
+
+            <section class="calendar-section card">
+                <h2><i class="fas fa-calendar-day"></i> Calendar Schedule</h2>
+                <div class="calendar-controls">
+                    <button id="prevMonth"><i class="fas fa-chevron-left"></i></button>
+                    <h3 id="currentMonth">April 2026</h3>
+                    <button id="nextMonth"><i class="fas fa-chevron-right"></i></button>
+                </div>
+                <div id="calendar" class="calendar-grid">
+                    <!-- Calendar will be generated here -->
+                </div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <span class="legend-color holiday"></span> Hong Kong Public Holiday
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color scheduled"></span> Scheduled Activity
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color weekend"></span> Weekend
+                    </div>
+                </div>
+            </section>
+
+            <section class="schedule-list card">
+                <h2><i class="fas fa-list-ol"></i> Schedule Timeline</h2>
+                <div id="scheduleTimeline">
+                    <!-- Schedule timeline will be generated here -->
+                </div>
+            </section>
+        </div>
+
+        <footer>
+            <p>Task Scheduler & Calendar Planner &copy; 2026 | Runs entirely offline</p>
+            <p class="footer-note">Hong Kong public holidays data included for 2024-2026</p>
+        </footer>
+    </div>
+
+    <script src="holidays.js"></script>
+    <script src="date-utils.js"></script>
+    <script src="script-enhanced.js"></script>
+</body>
+</html>
