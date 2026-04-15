@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const activityNameInput = document.getElementById('activityName');
     const durationInput = document.getElementById('duration');
     const dependenciesSelect = document.getElementById('dependencies');
+    const activityTypeInput = document.getElementById('activityType');
     const addActivityBtn = document.getElementById('addActivity');
     console.log("addActivityBtn found:", addActivityBtn);
     const activitiesContainer = document.getElementById('activitiesContainer');
@@ -54,6 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("addActivity function called");
         const name = activityNameInput.value.trim();
         const duration = parseInt(durationInput.value);
+        const type = activityTypeInput.value.trim() || 'Default';
         const dependencies = Array.from(dependenciesSelect.selectedOptions).map(option => option.value);
 
         if (!name) {
@@ -73,7 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
             duration,
             dependencies: dependencies,
             startDate: null,
-            endDate: null
+            type: type,            endDate: null
         };
 
         // Add to state
@@ -133,7 +135,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="activity-info">
                     <h4>${activity.name}</h4>
                     <p>Duration: ${activity.duration} day${activity.duration > 1 ? 's' : ''}</p>
-                    <p>Dependencies: ${activity.dependencies && activity.dependencies.length > 0 ? activity.dependencies.map(depId => getActivityName(depId)).join(', ') : 'None'}</p>
+                    <p>Type: ${activity.type}</p>                    <p>Dependencies: ${activity.dependencies && activity.dependencies.length > 0 ? activity.dependencies.map(depId => getActivityName(depId)).join(', ') : 'None'}</p>
                     ${activity.startDate ? `<p>Schedule: ${formatDate(activity.startDate)} - ${formatDate(activity.endDate)}</p>` : ''}
                 </div>
                 <div class="activity-actions">
@@ -229,11 +231,14 @@ document.addEventListener('DOMContentLoaded', function() {
             newDependencies = depIds;
         }
 
+        // Ask for type
+        const newType = prompt('Edit type:', activity.type || 'Default');
+        if (newType === null) return;
         // Update activity
         activity.name = newName.trim();
         activity.duration = duration;
         activity.dependencies = newDependencies;
-
+        activity.type = newType.trim();
         // If the activity is scheduled, we need to reschedule
         // For now, we'll remove the schedule and let the user regenerate
         // Remove from schedule
@@ -341,6 +346,7 @@ function updateDependenciesSelect() {
     }
 
     // Function to calculate schedule considering dependencies and holidays
+    // Function to calculate schedule considering dependencies, holidays, and types
     function calculateSchedule() {
         // Clear existing schedule
         state.schedule = [];
@@ -357,6 +363,9 @@ function updateDependenciesSelect() {
                 activity.endDate = null;
             }
         });
+
+        // Track the next available date for each type
+        const typeNextAvailable = {};
 
         // Function to schedule an activity
         const scheduleActivity = (activity, startDate) => {
@@ -382,7 +391,11 @@ function updateDependenciesSelect() {
             scheduledActivities.add(activity.id);
             state.schedule.push({ ...activity });
 
-            return currentDate.plus({ days: 1 }); // Next available date
+            // Update next available date for this activity's type
+            const type = activity.type || 'Default';
+            typeNextAvailable[type] = currentDate.plus({ days: 1 });
+
+            return currentDate.plus({ days: 1 });
         };
 
         // Separate activities with manually set dates
@@ -393,6 +406,14 @@ function updateDependenciesSelect() {
         manuallyScheduled.forEach(activity => {
             scheduledActivities.add(activity.id);
             state.schedule.push({ ...activity });
+            // Update type next available date for manually scheduled activities
+            const type = activity.type || 'Default';
+            if (activity.endDate) {
+                const nextAvail = activity.endDate.plus({ days: 1 });
+                if (!typeNextAvailable[type] || DateTime.isAfter(nextAvail, typeNextAvailable[type])) {
+                    typeNextAvailable[type] = nextAvail;
+                }
+            }
         });
 
         // Helper to check if all dependencies are scheduled
@@ -416,7 +437,31 @@ function updateDependenciesSelect() {
             // Schedule all available activities
             for (const activity of availableActivities) {
                 if (!scheduledActivities.has(activity.id)) {
-                    currentDate = scheduleActivity(activity, currentDate);
+                    // Determine start date based on type and dependencies
+                    let startDate = state.startDate;
+                    const type = activity.type || 'Default';
+                    
+                    // Consider type's next available date
+                    if (typeNextAvailable[type]) {
+                        startDate = DateTime.isAfter(typeNextAvailable[type], startDate) 
+                            ? typeNextAvailable[type] 
+                            : startDate;
+                    }
+                    
+                    // Consider dependencies' end dates
+                    if (activity.dependencies && activity.dependencies.length > 0) {
+                        activity.dependencies.forEach(depId => {
+                            const dep = state.activities.find(a => a.id === depId);
+                            if (dep && dep.endDate) {
+                                if (DateTime.isAfter(dep.endDate, startDate)) {
+                                    startDate = dep.endDate;
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Schedule the activity
+                    scheduleActivity(activity, startDate);
                 }
             }
 
@@ -439,7 +484,6 @@ function updateDependenciesSelect() {
         renderScheduleTimeline();
         renderCalendar();
     }
-
     // Function to check if a day is a working day (not weekend or holiday)
     function isWorkingDay(date) {
         // Check if it's a weekend (Saturday = 6, Sunday = 7 in our DateUtils)
@@ -792,7 +836,7 @@ function updateDependenciesSelect() {
     }
 
     // Import/Export Functions
-    function exportActivities() {
+        function exportActivities() {
         if (state.activities.length === 0) {
             alert('No activities to export');
             return;
@@ -803,7 +847,8 @@ function updateDependenciesSelect() {
             activities: state.activities.map(activity => ({
                 name: activity.name,
                 duration: activity.duration,
-                dependency: activity.dependency
+                dependency: activity.dependency,
+                type: activity.type || 'Default'
             })),
             exportedAt: new Date().toISOString(),
             version: '1.0'
@@ -812,7 +857,7 @@ function updateDependenciesSelect() {
         // Create and download JSON file
         const dataStr = JSON.stringify(exportData, null, 2);
         const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        const exportFileDefaultName = `activities-${new Date().toISOString().slice(0,10)}.json`;
+        const exportFileDefaultName = `activities-\${new Date().toISOString().slice(0,10)}.json`;
         
         const linkElement = document.createElement('a');
         linkElement.setAttribute('href', dataUri);
@@ -820,7 +865,7 @@ function updateDependenciesSelect() {
         linkElement.click();
     }
 
-    function exportSchedule() {
+        function exportSchedule() {
         if (state.schedule.length === 0) {
             alert('No schedule to export');
             return;
@@ -833,7 +878,8 @@ function updateDependenciesSelect() {
                 duration: activity.duration,
                 startDate: activity.startDate ? activity.startDate.toISODate() : null,
                 endDate: activity.endDate ? activity.endDate.toISODate() : null,
-                dependency: activity.dependency
+                dependency: activity.dependency,
+                type: activity.type || 'Default'
             })),
             exportedAt: new Date().toISOString(),
             version: '1.0'
@@ -842,7 +888,7 @@ function updateDependenciesSelect() {
         // Create and download JSON file
         const dataStr = JSON.stringify(exportData, null, 2);
         const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        const exportFileDefaultName = `schedule-${new Date().toISOString().slice(0,10)}.json`;
+        const exportFileDefaultName = `schedule-\${new Date().toISOString().slice(0,10)}.json`;
         
         const linkElement = document.createElement('a');
         linkElement.setAttribute('href', dataUri);
@@ -877,7 +923,7 @@ function updateDependenciesSelect() {
                             name: activityData.name,
                             duration: activityData.duration,
                             dependency: activityData.dependency || null,
-                            startDate: null,
+                            type: activityData.type || 'Default',                            startDate: null,
                             endDate: null
                         };
                         state.activities.push(activity);

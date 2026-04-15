@@ -56,18 +56,6 @@
                         <input type="number" id="duration" min="1" value="1">
                     </div>
                     <div class="form-group">
-                    <div class="form-group">
-                        <label for="activityType">Type</label>
-                        <input type="text" id="activityType" list="typeOptions" placeholder="e.g., Development">
-                        <datalist id="typeOptions">
-                            <option value="Development">
-                            <option value="Design">
-                            <option value="Meeting">
-                            <option value="Testing">
-                            <option value="Documentation">
-                            <option value="Other">
-                        </datalist>
-                    </div>
                         <label for="dependency">Dependencies (Optional)</label>
                         <select id="dependencies" multiple>
                             <option value="">None</option>
