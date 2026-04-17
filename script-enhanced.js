@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const activityNameInput = document.getElementById('activityName');
     const durationInput = document.getElementById('duration');
     const dependenciesSelect = document.getElementById('dependencies');
+    const allowNonWorkingDaysSelect = document.getElementById('allowNonWorkingDays');
     const addActivityBtn = document.getElementById('addActivity');
     const activitiesContainer = document.getElementById('activitiesContainer');
     const startDateInput = document.getElementById('startDate');
@@ -60,6 +61,11 @@ document.addEventListener('DOMContentLoaded', function() {
     typeFilterSelect.addEventListener('change', function() {
         renderActivitiesList();
     });
+    // Quick delete type button
+    const quickDeleteTypeBtn = document.getElementById('quickDeleteType');
+    if (quickDeleteTypeBtn) {
+        quickDeleteTypeBtn.addEventListener('click', deleteAllOfSelectedType);
+    }
     
     // Enhanced feature event listeners
     exportTemplateBtn.addEventListener('click', exportTemplate);
@@ -82,6 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const duration = parseInt(durationInput.value);
         const dependency = dependenciesSelect.value || null;
         const type = typeInput.value.trim() || 'Default';
+        const allowNonWorkingDays = allowNonWorkingDaysSelect.value === 'true';
         if (!name) {
             alert('Please enter an activity name');
             return;
@@ -99,6 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
             duration,
             type,
             dependency: dependency,
+            allowNonWorkingDays: allowNonWorkingDays,
             startDate: null,
             endDate: null
         };
@@ -202,7 +210,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (newStartDate && newStartDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
             const startDate = DateTime.fromISO(newStartDate);
-            const endDate = calculateEndDate(startDate, activity.duration);
+            const endDate = calculateEndDate(startDate, activity);
             
             // Update activity dates
             activity.startDate = startDate;
@@ -227,7 +235,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
     }
-    // Function to edit activity (name, duration, dependency) (exposed to window)
+    // Function to edit activity (name, duration, dependency, allowNonWorkingDays) (exposed to window)
     window.editActivity = function(id) {
     try {
     console.log("Function called with id:", id);
@@ -267,10 +275,15 @@ document.addEventListener('DOMContentLoaded', function() {
             newDependency = depId;
         }
 
+        // Prompt for allowNonWorkingDays
+        const currentAllow = activity.allowNonWorkingDays || false;
+        const newAllow = confirm('Allow on non-working days?\n\nCurrent: ' + (currentAllow ? 'Yes' : 'No') + '\n\nClick OK for Yes, Cancel for No.');
+        
         // Update activity
         activity.name = newName.trim();
         activity.duration = duration;
         activity.dependency = newDependency;
+        activity.allowNonWorkingDays = newAllow;
 
         // If the activity is scheduled, we need to reschedule
         // For now, we'll remove the schedule and let the user regenerate
@@ -291,18 +304,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     };
 
-    // Function to calculate end date based on start date and duration
-    function calculateEndDate(startDate, duration) {
+    // Function to calculate end date based on start date and activity
+    function calculateEndDate(startDate, activity) {
         let currentDate = startDate;
         let daysScheduled = 0;
         
-        while (daysScheduled < duration) {
-            if (!isWorkingDay(currentDate)) {
+        while (daysScheduled < activity.duration) {
+            if (!isDayAllowedForActivity(currentDate, activity)) {
                 currentDate = currentDate.plus({ days: 1 });
                 continue;
             }
             daysScheduled++;
-            if (daysScheduled === duration) break;
+            if (daysScheduled === activity.duration) break;
             currentDate = currentDate.plus({ days: 1 });
         }
         return currentDate;
@@ -337,12 +350,70 @@ function updateDependenciesSelect() {
         // Update the datalist for suggestions (if it exists)
         if (typeOptionsDatalist) {
             typeOptionsDatalist.innerHTML = '';
-            types.forEach(type => {
-                const option = document.createElement('option');
-                option.value = type;
-                typeOptionsDatalist.appendChild(option);
-            });
+            // Also include some default options if there are no types yet
+            if (types.length === 0) {
+                const defaultTypes = ['Development', 'Design', 'Meeting', 'Testing', 'Documentation', 'Other'];
+                defaultTypes.forEach(type => {
+                    const option = document.createElement('option');
+                    option.value = type;
+                    typeOptionsDatalist.appendChild(option);
+                });
+            } else {
+                types.forEach(type => {
+                    const option = document.createElement('option');
+                    option.value = type;
+                    typeOptionsDatalist.appendChild(option);
+                });
+            }
         }
+    }
+
+    // Function to delete all activities of the selected type
+    function deleteAllOfSelectedType() {
+        const selectedType = typeFilterSelect.value;
+        if (!selectedType) {
+            alert('Please select a type to delete');
+            return;
+        }
+
+        // Filter activities of the selected type
+        const activitiesToDelete = state.activities.filter(a => (a.type || 'Default') === selectedType);
+        if (activitiesToDelete.length === 0) {
+            alert(`No activities of type "${selectedType}" found`);
+            return;
+        }
+
+        // Check for dependencies: if any activity of other types depends on these activities
+        const dependentActivities = [];
+        activitiesToDelete.forEach(activity => {
+            const deps = state.activities.filter(a => a.dependency === activity.id);
+            deps.forEach(dep => {
+                if (!activitiesToDelete.some(a => a.id === dep.id)) {
+                    dependentActivities.push(dep);
+                }
+            });
+        });
+
+        if (dependentActivities.length > 0) {
+            const depNames = dependentActivities.map(a => a.name).join(', ');
+            if (!confirm(`The following activities depend on activities of type "${selectedType}": ${depNames}. Deleting these activities will break dependencies. Do you still want to proceed?`)) {
+                return;
+            }
+        }
+
+        // Remove the activities
+        const idsToDelete = new Set(activitiesToDelete.map(a => a.id));
+        state.activities = state.activities.filter(a => !idsToDelete.has(a.id));
+        state.schedule = state.schedule.filter(a => !idsToDelete.has(a.id));
+
+        // Update UI
+        renderActivitiesList();
+        updateDependenciesSelect();
+        updateTypeFilterAndSuggestions();
+        renderScheduleTimeline();
+        renderCalendar();
+
+        alert(`Deleted ${activitiesToDelete.length} activities of type "${selectedType}"`);
     }
 
     // Function to get activity name by ID
@@ -439,8 +510,8 @@ function updateDependenciesSelect() {
             let daysScheduled = 0;
             
             while (daysScheduled < activity.duration) {
-                // Skip weekends and holidays
-                if (!isWorkingDay(currentDate)) {
+                // Skip weekends and holidays unless activity allows non-working days
+                if (!isDayAllowedForActivity(currentDate, activity)) {
                     currentDate = currentDate.plus({ days: 1 });
                     continue;
                 }
@@ -470,9 +541,11 @@ function updateDependenciesSelect() {
             state.schedule.push({ ...activity });
         });
 
-        // Find activities with no dependencies to start
-        let availableActivities = toAutoSchedule.filter(a => !a.dependency);
         let currentDate = state.startDate;
+        let availableActivities = toAutoSchedule.filter(a => 
+            !scheduledActivities.has(a.id) && 
+            (a.dependency === null || scheduledActivities.has(a.dependency))
+        );
 
         while (availableActivities.length > 0) {
             // Sort by duration (shortest first) for better scheduling
@@ -480,9 +553,7 @@ function updateDependenciesSelect() {
             
             // Schedule all available activities
             for (const activity of availableActivities) {
-                if (!scheduledActivities.has(activity.id)) {
-                    currentDate = scheduleActivity(activity, currentDate);
-                }
+                currentDate = scheduleActivity(activity, currentDate);
             }
 
             // Update available activities
@@ -492,9 +563,15 @@ function updateDependenciesSelect() {
             );
         }
 
-        // Check for circular dependencies
+        // Check for unscheduled activities
         if (scheduledActivities.size < state.activities.length) {
             const unscheduled = state.activities.filter(a => !scheduledActivities.has(a.id));
+            // Check if any unscheduled activities have missing dependencies
+            const missingDeps = unscheduled.filter(a => a.dependency && !state.activities.find(b => b.id === a.dependency));
+            if (missingDeps.length > 0) {
+                throw new Error(`Cannot schedule activities because their dependencies are missing: ${missingDeps.map(a => a.name).join(', ')}`);
+            }
+            // Otherwise, assume circular dependency
             throw new Error(`Circular dependency detected. Unscheduled activities: ${unscheduled.map(a => a.name).join(', ')}`);
         }
 
@@ -516,6 +593,14 @@ function updateDependenciesSelect() {
         }
         
         return true;
+    }
+
+    // Function to check if a day is allowed for an activity
+    function isDayAllowedForActivity(date, activity) {
+        if (activity.allowNonWorkingDays) {
+            return true; // Activity can be scheduled on any day
+        }
+        return isWorkingDay(date);
     }
 
     // Function to render schedule timeline
@@ -703,7 +788,7 @@ function updateDependenciesSelect() {
                     const activity = state.activities.find(a => a.name.toLowerCase() === activityName.toLowerCase());
                     if (activity) {
                         const startDate = DateTime.fromISO(dateString);
-                        const endDate = calculateEndDate(startDate, activity.duration);
+                        const endDate = calculateEndDate(startDate, activity);
                         
                         activity.startDate = startDate;
                         activity.endDate = endDate;
@@ -941,7 +1026,9 @@ function updateDependenciesSelect() {
             activities: state.activities.map(activity => ({
                 name: activity.name,
                 duration: activity.duration,
-                dependency: activity.dependency
+                dependency: activity.dependency,
+                type: activity.type || 'Default',
+                allowNonWorkingDays: activity.allowNonWorkingDays || false
             })),
             exportedAt: new Date().toISOString(),
             version: '1.0'
@@ -1015,6 +1102,8 @@ function updateDependenciesSelect() {
                             name: activityData.name,
                             duration: activityData.duration,
                             dependency: activityData.dependency || null,
+                            type: activityData.type || 'Default',
+                            allowNonWorkingDays: activityData.allowNonWorkingDays || false,
                             startDate: null,
                             endDate: null
                         };
@@ -1030,6 +1119,8 @@ function updateDependenciesSelect() {
                             name: scheduleData.name,
                             duration: scheduleData.duration,
                             dependency: scheduleData.dependency || null,
+                            type: scheduleData.type || 'Default',
+                            allowNonWorkingDays: scheduleData.allowNonWorkingDays || false,
                             startDate: scheduleData.startDate ? DateTime.fromISO(scheduleData.startDate) : null,
                             endDate: scheduleData.endDate ? DateTime.fromISO(scheduleData.endDate) : null
                         };

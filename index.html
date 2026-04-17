@@ -56,7 +56,6 @@
                         <input type="number" id="duration" min="1" value="1">
                     </div>
                     <div class="form-group">
-                    <div class="form-group">
                         <label for="activityType">Type</label>
                         <input type="text" id="activityType" list="typeOptions" placeholder="e.g., Development">
                         <datalist id="typeOptions">
@@ -68,9 +67,17 @@
                             <option value="Other">
                         </datalist>
                     </div>
+                    <div class="form-group">
                         <label for="dependency">Dependency (Optional)</label>
                         <select id="dependencies">
                             <option value="">None</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="allowNonWorkingDays">Allow on non‑working days</label>
+                        <select id="allowNonWorkingDays">
+                            <option value="false">No (default)</option>
+                            <option value="true">Yes</option>
                         </select>
                     </div>
                     <div class="form-group">
