@@ -1,73 +1,59 @@
-import sys
+import re
 
 with open('script-enhanced.js', 'r') as f:
-    lines = f.readlines()
+    content = f.read()
 
-# Find the start and end of the renderActivitiesList function
-start = -1
-end = -1
-brace_count = 0
-for i, line in enumerate(lines):
-    if 'function renderActivitiesList() {' in line:
-        start = i
-        brace_count = 1
-        j = i + 1
-        while j < len(lines) and brace_count > 0:
-            if '{' in lines[j]:
-                brace_count += 1
-            if '}' in lines[j]:
-                brace_count -= 1
-                if brace_count == 0:
-                    end = j
-                    break
-            j += 1
-        break
+# 1. Fix the escaped single quote in the addActivity function.
+# Replace `\'Default\'` with `'Default'`.
+content = re.sub(r"\\'Default\\'", "'Default'", content)
 
-if start == -1 or end == -1:
-    print("Could not find renderActivitiesList function")
-    sys.exit(1)
+# 2. Ensure there is a newline after the type declaration before the next statement.
+# Look for the pattern: `const type = ...;if (` and replace with `const type = ...;\n        if (`
+content = re.sub(r'(const type = typeInput\.value\.trim\(\) \|\| \'Default\'\);if \(!)', r'\1\n        if (!', content)
 
-# Replace the function with a corrected version
-new_function = '''    // Enhanced function to render activities list with edit buttons
-    function renderActivitiesList() {
-        if (state.activities.length === 0) {
-            activitiesContainer.innerHTML = '<p class="empty-message">No activities added yet. Add your first activity above.</p>';
-            return;
-        }
+# 3. Also check for any other occurrences of escaped single quotes in the file that might have been introduced.
+content = re.sub(r"\\'", "'", content)
 
-        activitiesContainer.innerHTML = '';
+# 4. There might be an issue with the activity object creation: we changed the activity object structure but the regex might have left some extra characters.
+# Let's find the activity object creation and make sure it's correct.
+# We'll look for the pattern: `const activity = { ... }` in the addActivity function and replace with a clean version.
+add_activity_pattern = r'(function addActivity\(\) \{[\s\S]*?)(const activity = \{[\s\S]*?\};)'
+def replace_activity_object(match):
+    func_start = match.group(1)
+    # We'll replace the activity object with a clean one that matches the new structure.
+    # The new structure should be:
+    # const activity = {
+    #     id: generateId(),
+    #     name,
+    #     duration,
+    #     type,
+    #     dependencies: dependencies,
+    #     startDate: null,
+    #     endDate: null
+    # };
+    # But note that the original object might have been changed. We'll just fix the type property.
+    # We'll replace the entire activity object with a clean version.
+    # However, we don't want to break other parts. Instead, let's fix the type property if it's missing.
+    # We'll look for the existing object and ensure it has a type property.
+    # We'll do a simpler fix: replace the line that defines the activity object with a corrected one.
+    # We'll assume the object is on multiple lines. Let's capture the whole object and then replace.
+    # We'll use a more specific pattern for the object.
+    activity_object = match.group(2)
+    # If the object does not have a 'type' property, we add it.
+    if 'type' not in activity_object:
+        # We'll insert after the duration property.
+        activity_object = re.sub(r'(duration:\s*duration,)', r'\1\n            type,', activity_object)
+    # Also make sure the dependencies property uses the variable 'dependencies' (not 'dependency').
+    activity_object = re.sub(r'dependencies:\s*dependency', 'dependencies: dependencies', activity_object)
+    return func_start + activity_object
 
-        state.activities.forEach(activity => {
-            const activityElement = document.createElement('div');
-            activityElement.className = 'activity-item';
-            activityElement.innerHTML = \`
-                <div class="activity-info">
-                    <h4>\${activity.name}</h4>
-                    <p>Duration: \${activity.duration} day\${activity.duration > 1 ? 's' : ''}</p>
-                    <p>Dependencies: \${activity.dependencies && activity.dependencies.length > 0 ? activity.dependencies.map(depId => getActivityName(depId)).join(', ') : 'None'}</p>
-                    \${activity.startDate ? \`<p>Schedule: \${formatDate(activity.startDate)} - \${formatDate(activity.endDate)}</p>\` : ''}
-                </div>
-                <div class="activity-actions">
-                    <button class="btn-secondary edit-activity-btn" onclick="editActivity('\${activity.id}')">
-                        <i class="fas fa-edit"></i> Edit
-                    </button>
-                    <button class="btn-secondary edit-date-btn" onclick="editActivityDate('\${activity.id}')">
-                        <i class="fas fa-calendar-edit"></i> Edit Date
-                    </button>
-                    <button class="btn-danger" onclick="removeActivity('\${activity.id}')">
-                        <i class="fas fa-trash"></i> Remove
-                    </button>
-                </div>
-            \`;
-            activitiesContainer.appendChild(activityElement);
-        });
-    }'''
+content = re.sub(add_activity_pattern, replace_activity_object, content, flags=re.DOTALL)
 
-# Replace the function
-lines = lines[:start] + [new_function] + lines[end+1:]
+# 5. Check for any other syntax errors that might have been introduced by the previous regex replacements.
+# For example, double semicolons or missing commas.
 
-# Write back
+# Write the fixed content back
 with open('script-enhanced.js', 'w') as f:
-    f.writelines(lines)
+    f.write(content)
 
-print("Fixed renderActivitiesList function syntax")
+print('Fixed syntax errors in addActivity function.')

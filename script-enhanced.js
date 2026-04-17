@@ -17,9 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const activityNameInput = document.getElementById('activityName');
     const durationInput = document.getElementById('duration');
     const dependenciesSelect = document.getElementById('dependencies');
-    const activityTypeInput = document.getElementById('activityType');
     const addActivityBtn = document.getElementById('addActivity');
-    console.log("addActivityBtn found:", addActivityBtn);
     const activitiesContainer = document.getElementById('activitiesContainer');
     const startDateInput = document.getElementById('startDate');
     const generateScheduleBtn = document.getElementById('generateSchedule');
@@ -29,6 +27,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const nextMonthBtn = document.getElementById('nextMonth');
     const calendarElement = document.getElementById('calendar');
     const scheduleTimelineElement = document.getElementById('scheduleTimeline');
+    // Type-related elements
+    const typeInput = document.getElementById('activityType');
+    const typeFilterSelect = document.getElementById('typeFilter');
+    const typeOptionsDatalist = document.getElementById('typeOptions');
     
     // New DOM Elements for enhanced features
     const templateSelect = document.getElementById('templateSelect');
@@ -49,15 +51,37 @@ document.addEventListener('DOMContentLoaded', function() {
     updateTemplatesDropdown();
 
     // Event Listeners
-    console.log("Adding event listener to addActivityBtn");
-    window.addActivity = function(event) {
-        if (event) event.preventDefault();
-        console.log("addActivity function called");
+    addActivityBtn.addEventListener('click', addActivity);
+    generateScheduleBtn.addEventListener('click', generateSchedule);
+    clearAllBtn.addEventListener('click', clearAll);
+    prevMonthBtn.addEventListener('click', previousMonth);
+    nextMonthBtn.addEventListener('click', nextMonth);
+    // Type filter event listener
+    typeFilterSelect.addEventListener('change', function() {
+        renderActivitiesList();
+    });
+    
+    // Enhanced feature event listeners
+    exportTemplateBtn.addEventListener('click', exportTemplate);
+    importTemplateBtn.addEventListener('click', () => importTemplateFileInput.click());
+    importTemplateFileInput.addEventListener('change', handleTemplateImport);
+    templateSelect.addEventListener('change', handleTemplateSelect);
+    exportActivitiesBtn.addEventListener('click', exportActivities);
+    importActivitiesBtn.addEventListener('click', () => importFileInput.click());
+    exportScheduleBtn.addEventListener('click', exportSchedule);
+    importFileInput.addEventListener('change', handleFileImport);
+
+    // Initialize calendar
+    renderCalendar();
+    updateDependenciesSelect();
+    updateTypeFilterAndSuggestions();
+
+    // Function to add a new activity
+    function addActivity() {
         const name = activityNameInput.value.trim();
         const duration = parseInt(durationInput.value);
-        const type = activityTypeInput.value.trim() || 'Default';
-        const dependencies = Array.from(dependenciesSelect.selectedOptions).map(option => option.value);
-
+        const dependency = dependenciesSelect.value || null;
+        const type = typeInput.value.trim() || 'Default';
         if (!name) {
             alert('Please enter an activity name');
             return;
@@ -73,9 +97,10 @@ document.addEventListener('DOMContentLoaded', function() {
             id: generateId(),
             name,
             duration,
-            dependencies: dependencies,
+            type,
+            dependency: dependency,
             startDate: null,
-            type: type,            endDate: null
+            endDate: null
         };
 
         // Add to state
@@ -84,82 +109,90 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear inputs
         activityNameInput.value = '';
         durationInput.value = '1';
-
-        // Clear dependencies selection
-        dependenciesSelect.selectedIndex = -1;
+        typeInput.value = '';
 
         // Update UI
         renderActivitiesList();
-        updateDependenciesSelect();
+    updateDependenciesSelect();
+        updateTypeFilterAndSuggestions();
 
         console.log('Activity added:', activity);
-        alert("Activity added successfully!");
     }
-    addActivityBtn.addEventListener('click', addActivity);
-    console.log("Event listener added to addActivityBtn");
-    generateScheduleBtn.addEventListener('click', generateSchedule);
-    clearAllBtn.addEventListener('click', clearAll);
-    prevMonthBtn.addEventListener('click', previousMonth);
-    nextMonthBtn.addEventListener('click', nextMonth);
-    
-    // Enhanced feature event listeners
-    exportTemplateBtn.addEventListener('click', exportTemplate);
-    importTemplateBtn.addEventListener('click', () => importTemplateFileInput.click());
-    importTemplateFileInput.addEventListener('change', handleTemplateImport);
-    templateSelect.addEventListener('change', handleTemplateSelect);
-    exportActivitiesBtn.addEventListener('click', exportActivities);
-    importActivitiesBtn.addEventListener('click', () => importFileInput.click());
-    exportScheduleBtn.addEventListener('click', exportSchedule);
-    importFileInput.addEventListener('change', handleFileImport);
-
-    // Initialize calendar
-    renderCalendar();
-    updateDependenciesSelect();
-
-    // Function to add a new activity
-
 
     // Enhanced function to render activities list with edit buttons
-    function renderActivitiesList() {
-        if (state.activities.length === 0) {
-            activitiesContainer.innerHTML = '<p class="empty-message">No activities added yet. Add your first activity above.</p>';
+            function renderActivitiesList() {
+        // Get the selected type filter
+        const selectedType = typeFilterSelect.value;
+        
+        // Filter activities by type if a type is selected
+        let activitiesToShow = state.activities;
+        if (selectedType) {
+            activitiesToShow = state.activities.filter(a => (a.type || 'Default') === selectedType);
+        }
+
+        if (activitiesToShow.length === 0) {
+            activitiesContainer.innerHTML = '<p class="empty-message">No activities ' + (selectedType ? 'of type "' + selectedType + '" ' : '') + 'added yet. Add your first activity above.</p>';
             return;
         }
 
         activitiesContainer.innerHTML = '';
 
-        state.activities.forEach(activity => {
+        activitiesToShow.forEach(activity => {
             const activityElement = document.createElement('div');
             activityElement.className = 'activity-item';
-            activityElement.innerHTML = `
-                <div class="activity-info">
-                    <h4>${activity.name}</h4>
-                    <p>Duration: ${activity.duration} day${activity.duration > 1 ? 's' : ''}</p>
-                    <p>Type: ${activity.type}</p>                    <p>Dependencies: ${activity.dependencies && activity.dependencies.length > 0 ? activity.dependencies.map(depId => getActivityName(depId)).join(', ') : 'None'}</p>
-                    ${activity.startDate ? `<p>Schedule: ${formatDate(activity.startDate)} - ${formatDate(activity.endDate)}</p>` : ''}
-                </div>
-                <div class="activity-actions">
-                    <button class="btn-secondary edit-activity-btn" onclick="editActivity('${activity.id}')">
-                        <i class="fas fa-edit"></i> Edit
-                    </button>
-                    <button class="btn-secondary edit-date-btn" onclick="editActivityDate('${activity.id}')">
-                        <i class="fas fa-calendar-edit"></i> Edit Date
-                    </button>
-                    <button class="btn-danger" onclick="removeActivity('${activity.id}')">
-                        <i class="fas fa-trash"></i> Remove
-                    </button>
-                </div>
-            `;
+            
+            // Build HTML string using concatenation
+            let html = '';
+            html += '<div class="activity-info">';
+            html += '<h4>' + escapeHtml(activity.name) + '</h4>';
+            html += '<p>Duration: ' + activity.duration + ' day' + (activity.duration > 1 ? 's' : '') + '</p>';
+            html += '<p>Type: ' + escapeHtml(activity.type || 'Default') + '</p>';
+            let depsText = 'None';
+            if (activity.dependency) {
+                depsText = escapeHtml(getActivityName(activity.dependency));
+            }
+            html += '<p>Dependency: ' + depsText + '</p>';
+            if (activity.startDate) {
+                html += '<p>Schedule: ' + formatDate(activity.startDate) + ' - ' + formatDate(activity.endDate) + '</p>';
+            }
+            html += '</div>';
+            html += '<div class="activity-actions">';
+            html += '<button class="btn-secondary edit-activity-btn" onclick="editActivity(\'' + activity.id + '\')">';
+            html += '<i class="fas fa-edit"></i> Edit';
+            html += '</button>';
+            html += '<button class="btn-secondary edit-date-btn" onclick="editActivityDate(\'' + activity.id + '\')">';
+            html += '<i class="fas fa-calendar-edit"></i> Edit Date';
+            html += '</button>';
+            html += '<button class="btn-danger" onclick="removeActivity(\'' + activity.id + '\')">';
+            html += '<i class="fas fa-trash"></i> Remove';
+            html += '</button>';
+            html += '</div>';
+            
+            activityElement.innerHTML = html;
             activitiesContainer.appendChild(activityElement);
         });
-    }    // Function to format date for display
+    }
+
+    // Function to format date for display
     function formatDate(dateObj) {
         if (!dateObj) return 'Not scheduled';
         return dateObj.toLocaleString();
     }
+    // Helper to escape HTML special characters
+    function escapeHtml(text) {
+        if (typeof text !== 'string') return text;
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
 
     // Function to edit activity date (exposed to window)
     window.editActivityDate = function(id) {
+    try {
+    console.log("Function called with id:", id);
         const activity = state.activities.find(a => a.id === id);
         if (!activity) return;
 
@@ -189,10 +222,15 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (newStartDate !== null) {
             alert('Please enter a valid date in YYYY-MM-DD format');
         }
-
+    } catch (error) {
+        console.error(error);
+        return;
     }
-    // Function to edit activity (name, duration, dependencies) (exposed to window)
+    }
+    // Function to edit activity (name, duration, dependency) (exposed to window)
     window.editActivity = function(id) {
+    try {
+    console.log("Function called with id:", id);
         const activity = state.activities.find(a => a.id === id);
         if (!activity) return;
 
@@ -209,36 +247,31 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Show current dependencies and let user edit
-        let currentDeps = '';
-        if (activity.dependencies && activity.dependencies.length > 0) {
-            currentDeps = activity.dependencies.map(depId => getActivityName(depId)).join(', ');
+        // Show current dependency and let user edit
+        let currentDep = '';
+        if (activity.dependency) {
+            currentDep = getActivityName(activity.dependency);
         }
-        const depsPrompt = prompt('Edit dependencies (enter activity IDs separated by comma, leave empty for none).\nCurrent dependencies: ' + currentDeps + '\nAvailable activities:\n' + 
+        const depsPrompt = prompt('Edit dependency (enter activity ID, leave empty for none).\nCurrent dependency: ' + currentDep + '\nAvailable activities:\n' + 
             state.activities.filter(a => a.id !== id).map(a => a.id + ': ' + a.name).join('\n'), 
-            activity.dependencies ? activity.dependencies.join(',') : '');
+            activity.dependency || '');
         
-        let newDependencies = [];
+        let newDependency = null;
         if (depsPrompt !== null && depsPrompt.trim() !== '') {
-            const depIds = depsPrompt.split(',').map(id => id.trim()).filter(id => id !== '');
-            // Validate each ID exists
-            for (const depId of depIds) {
-                if (!state.activities.find(a => a.id === depId)) {
-                    alert('Invalid activity ID: ' + depId);
-                    return;
-                }
+            const depId = depsPrompt.trim();
+            // Validate ID exists
+            if (!state.activities.find(a => a.id === depId)) {
+                alert('Invalid activity ID: ' + depId);
+                return;
             }
-            newDependencies = depIds;
+            newDependency = depId;
         }
 
-        // Ask for type
-        const newType = prompt('Edit type:', activity.type || 'Default');
-        if (newType === null) return;
         // Update activity
         activity.name = newName.trim();
         activity.duration = duration;
-        activity.dependencies = newDependencies;
-        activity.type = newType.trim();
+        activity.dependency = newDependency;
+
         // If the activity is scheduled, we need to reschedule
         // For now, we'll remove the schedule and let the user regenerate
         // Remove from schedule
@@ -249,8 +282,13 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update UI
         renderActivitiesList();
         updateDependenciesSelect();
+        updateTypeFilterAndSuggestions();
         renderScheduleTimeline();
         renderCalendar();
+    } catch (error) {
+        console.error(error);
+        return;
+    }
     };
 
     // Function to calculate end date based on start date and duration
@@ -282,6 +320,31 @@ function updateDependenciesSelect() {
         });
     }
 
+    // Function to update the type filter dropdown and suggestions
+    function updateTypeFilterAndSuggestions() {
+        // Get unique types from activities
+        const types = [...new Set(state.activities.map(a => a.type || 'Default'))];
+
+        // Update the type filter dropdown
+        typeFilterSelect.innerHTML = '<option value="">All Types</option>';
+        types.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type;
+            option.textContent = type;
+            typeFilterSelect.appendChild(option);
+        });
+
+        // Update the datalist for suggestions (if it exists)
+        if (typeOptionsDatalist) {
+            typeOptionsDatalist.innerHTML = '';
+            types.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                typeOptionsDatalist.appendChild(option);
+            });
+        }
+    }
+
     // Function to get activity name by ID
     function getActivityName(id) {
         const activity = state.activities.find(a => a.id === id);
@@ -290,8 +353,10 @@ function updateDependenciesSelect() {
 
     // Enhanced function to remove an activity
     window.removeActivity = function(id) {
+    try {
+    console.log("Function called with id:", id);
         // Check if any activity depends on this one
-        const dependentActivities = state.activities.filter(a => a.dependencies && a.dependencies.includes(id));
+        const dependentActivities = state.activities.filter(a => a.dependency === id);
         
         if (dependentActivities.length > 0) {
             const dependentNames = dependentActivities.map(a => a.name).join(', ');
@@ -305,8 +370,8 @@ function updateDependenciesSelect() {
         
         // Remove any dependencies pointing to this activity
         state.activities.forEach(a => {
-            if (a.dependencies && a.dependencies.includes(id)) {
-                a.dependencies = a.dependencies.filter(depId => depId !== id);
+            if (a.dependency === id) {
+                a.dependency = null;
             }
         });
 
@@ -316,8 +381,13 @@ function updateDependenciesSelect() {
         // Update UI
         renderActivitiesList();
     updateDependenciesSelect();
+        updateTypeFilterAndSuggestions();
         renderScheduleTimeline();
         renderCalendar();
+    } catch (error) {
+        console.error(error);
+        return;
+    }
     };
 
     // Function to generate schedule
@@ -346,15 +416,14 @@ function updateDependenciesSelect() {
     }
 
     // Function to calculate schedule considering dependencies and holidays
-    // Function to calculate schedule considering dependencies, holidays, and types
     function calculateSchedule() {
         // Clear existing schedule
         state.schedule = [];
-
+        
         // Create a copy of activities to process
         const activitiesToSchedule = [...state.activities];
         const scheduledActivities = new Set();
-
+        
         // Initialize all activities
         activitiesToSchedule.forEach(activity => {
             // Only reset dates if they weren't manually set
@@ -364,126 +433,75 @@ function updateDependenciesSelect() {
             }
         });
 
-        // Track the next available date for each type
-        const typeNextAvailable = {};
-
         // Function to schedule an activity
         const scheduleActivity = (activity, startDate) => {
             let currentDate = startDate;
             let daysScheduled = 0;
-
+            
             while (daysScheduled < activity.duration) {
                 // Skip weekends and holidays
                 if (!isWorkingDay(currentDate)) {
                     currentDate = currentDate.plus({ days: 1 });
                     continue;
                 }
-
+                
                 daysScheduled++;
                 if (daysScheduled === activity.duration) {
                     break;
                 }
                 currentDate = currentDate.plus({ days: 1 });
             }
-
+            
             activity.startDate = startDate;
             activity.endDate = currentDate;
             scheduledActivities.add(activity.id);
             state.schedule.push({ ...activity });
-
-            // Update next available date for this activity's type
-            const type = activity.type || 'Default';
-            typeNextAvailable[type] = currentDate.plus({ days: 1 });
-
-            return currentDate.plus({ days: 1 });
+            
+            return currentDate.plus({ days: 1 }); // Next available date
         };
 
         // Separate activities with manually set dates
         const manuallyScheduled = activitiesToSchedule.filter(a => a.startDate !== null);
         const toAutoSchedule = activitiesToSchedule.filter(a => a.startDate === null);
-
+        
         // Add manually scheduled activities to schedule
         manuallyScheduled.forEach(activity => {
             scheduledActivities.add(activity.id);
             state.schedule.push({ ...activity });
-            // Update type next available date for manually scheduled activities
-            const type = activity.type || 'Default';
-            if (activity.endDate) {
-                const nextAvail = activity.endDate.plus({ days: 1 });
-                if (!typeNextAvailable[type] || DateTime.isAfter(nextAvail, typeNextAvailable[type])) {
-                    typeNextAvailable[type] = nextAvail;
-                }
-            }
         });
 
-        // Helper to check if all dependencies are scheduled
-        const allDependenciesScheduled = (activity) => {
-            // If no dependencies, return true
-            if (!activity.dependencies || activity.dependencies.length === 0) {
-                return true;
-            }
-            // Check that every dependency is in scheduledActivities
-            return activity.dependencies.every(depId => scheduledActivities.has(depId));
-        };
-
         // Find activities with no dependencies to start
-        let availableActivities = toAutoSchedule.filter(a => allDependenciesScheduled(a));
+        let availableActivities = toAutoSchedule.filter(a => !a.dependency);
         let currentDate = state.startDate;
 
         while (availableActivities.length > 0) {
             // Sort by duration (shortest first) for better scheduling
             availableActivities.sort((a, b) => a.duration - b.duration);
-
+            
             // Schedule all available activities
             for (const activity of availableActivities) {
                 if (!scheduledActivities.has(activity.id)) {
-                    // Determine start date based on type and dependencies
-                    let startDate = state.startDate;
-                    const type = activity.type || 'Default';
-                    
-                    // Consider type's next available date
-                    if (typeNextAvailable[type]) {
-                        startDate = DateTime.isAfter(typeNextAvailable[type], startDate) 
-                            ? typeNextAvailable[type] 
-                            : startDate;
-                    }
-                    
-                    // Consider dependencies' end dates
-                    if (activity.dependencies && activity.dependencies.length > 0) {
-                        activity.dependencies.forEach(depId => {
-                            const dep = state.activities.find(a => a.id === depId);
-                            if (dep && dep.endDate) {
-                                if (DateTime.isAfter(dep.endDate, startDate)) {
-                                    startDate = dep.endDate;
-                                }
-                            }
-                        });
-                    }
-                    
-                    // Schedule the activity
-                    scheduleActivity(activity, startDate);
+                    currentDate = scheduleActivity(activity, currentDate);
                 }
             }
 
-            // Update available activities: those not scheduled and whose dependencies are all scheduled
-            availableActivities = toAutoSchedule.filter(a =>
-                !scheduledActivities.has(a.id) && allDependenciesScheduled(a)
+            // Update available activities
+            availableActivities = toAutoSchedule.filter(a => 
+                !scheduledActivities.has(a.id) && 
+                (a.dependency === null || scheduledActivities.has(a.dependency))
             );
         }
 
-        // Check for circular dependencies (unscheduled activities remaining)
-        const unscheduled = toAutoSchedule.filter(a => !scheduledActivities.has(a.id));
-        if (unscheduled.length > 0) {
-            console.warn('Unscheduled activities (possible circular dependency):', unscheduled);
+        // Check for circular dependencies
+        if (scheduledActivities.size < state.activities.length) {
+            const unscheduled = state.activities.filter(a => !scheduledActivities.has(a.id));
+            throw new Error(`Circular dependency detected. Unscheduled activities: ${unscheduled.map(a => a.name).join(', ')}`);
         }
 
         // Sort schedule by start date
         state.schedule.sort((a, b) => a.startDate.valueOf() - b.startDate.valueOf());
-
-        // Update UI
-        renderScheduleTimeline();
-        renderCalendar();
     }
+
     // Function to check if a day is a working day (not weekend or holiday)
     function isWorkingDay(date) {
         // Check if it's a weekend (Saturday = 6, Sunday = 7 in our DateUtils)
@@ -516,16 +534,18 @@ function updateDependenciesSelect() {
             const startDateStr = activity.startDate ? activity.startDate.toLocaleString() : 'Not scheduled';
             const endDateStr = activity.endDate ? activity.endDate.toLocaleString() : 'Not scheduled';
             
-            timelineItem.innerHTML = `
-                <div>
-                    <h4>${activity.name}</h4>
-                    <p>Duration: ${activity.duration} day${activity.duration > 1 ? 's' : ''}</p>
-                    ${activity.dependency ? `<p>Depends on: ${getActivityName(activity.dependency)}</p>` : ''}
-                </div>
-                <div class="timeline-dates">
-                    ${startDateStr} - ${endDateStr}
-                </div>
-            `;
+            let timelineHTML = '';
+            timelineHTML += '<div>';
+            timelineHTML += '<h4>' + escapeHtml(activity.name) + '</h4>';
+            timelineHTML += '<p>Duration: ' + activity.duration + ' day' + (activity.duration > 1 ? 's' : '') + '</p>';
+            if (activity.dependency) {
+                timelineHTML += '<p>Depends on: ' + escapeHtml(getActivityName(activity.dependency)) + '</p>';
+            }
+            timelineHTML += '</div>';
+            timelineHTML += '<div class="timeline-dates">';
+            timelineHTML += escapeHtml(startDateStr) + ' - ' + escapeHtml(endDateStr);
+            timelineHTML += '</div>';
+            timelineItem.innerHTML = timelineHTML;
             
             scheduleTimelineElement.appendChild(timelineItem);
         });
@@ -737,6 +757,7 @@ function updateDependenciesSelect() {
         
         renderActivitiesList();
     updateDependenciesSelect();
+        updateTypeFilterAndSuggestions();
         renderScheduleTimeline();
         renderCalendar();
         
@@ -745,7 +766,80 @@ function updateDependenciesSelect() {
     }
 
     // Template Management Functions
+    function saveTemplate() {
+        if (state.activities.length === 0) {
+            alert('No activities to save as template');
+            return;
+        }
+        
+        const templateName = prompt('Enter a name for this template:');
+        if (!templateName) return;
+        
+        // Create template object without IDs (they will be regenerated on load)
+        const template = {
+            name: templateName,
+            activities: state.activities.map(activity => ({
+                name: activity.name,
+                duration: activity.duration,
+                dependency: null // Reset dependencies for templates
+            })),
+            createdAt: new Date().toISOString()
+        };
+        
+        // Save to templates
+        state.templates.push(template);
+        saveTemplatesToStorage(state.templates);
+        updateTemplatesDropdown();
+        
+        alert(`Template "${templateName}" saved successfully!`);
+    }
 
+    function loadTemplate() {
+        const selectedTemplateName = templateSelect.value;
+        if (!selectedTemplateName) {
+            alert('Please select a template first');
+            return;
+        }
+        
+        if (!confirm('Loading a template will replace your current activities. Continue?')) {
+            return;
+        }
+        
+        const template = state.templates.find(t => t.name === selectedTemplateName);
+        if (!template) {
+            alert('Template not found');
+            return;
+        }
+        
+        // Clear current activities
+        state.activities = [];
+        
+        // Load template activities with new IDs
+        template.activities.forEach(activityData => {
+            const activity = {
+                id: generateId(),
+                name: activityData.name,
+                duration: activityData.duration,
+                dependency: null,
+                startDate: null,
+                endDate: null
+            };
+            state.activities.push(activity);
+        });
+        
+        // Clear schedule
+        state.schedule = [];
+        state.startDate = null;
+        
+        // Update UI
+        renderActivitiesList();
+    updateDependenciesSelect();
+        updateTypeFilterAndSuggestions();
+        renderScheduleTimeline();
+        renderCalendar();
+        
+        alert(`Template "${template.name}" loaded successfully!`);
+    }
 
     function exportTemplate() {
         const selectedTemplateName = templateSelect.value;
@@ -836,7 +930,7 @@ function updateDependenciesSelect() {
     }
 
     // Import/Export Functions
-        function exportActivities() {
+    function exportActivities() {
         if (state.activities.length === 0) {
             alert('No activities to export');
             return;
@@ -847,8 +941,7 @@ function updateDependenciesSelect() {
             activities: state.activities.map(activity => ({
                 name: activity.name,
                 duration: activity.duration,
-                dependency: activity.dependency,
-                type: activity.type || 'Default'
+                dependency: activity.dependency
             })),
             exportedAt: new Date().toISOString(),
             version: '1.0'
@@ -857,7 +950,7 @@ function updateDependenciesSelect() {
         // Create and download JSON file
         const dataStr = JSON.stringify(exportData, null, 2);
         const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        const exportFileDefaultName = `activities-\${new Date().toISOString().slice(0,10)}.json`;
+        const exportFileDefaultName = `activities-${new Date().toISOString().slice(0,10)}.json`;
         
         const linkElement = document.createElement('a');
         linkElement.setAttribute('href', dataUri);
@@ -865,7 +958,7 @@ function updateDependenciesSelect() {
         linkElement.click();
     }
 
-        function exportSchedule() {
+    function exportSchedule() {
         if (state.schedule.length === 0) {
             alert('No schedule to export');
             return;
@@ -878,8 +971,7 @@ function updateDependenciesSelect() {
                 duration: activity.duration,
                 startDate: activity.startDate ? activity.startDate.toISODate() : null,
                 endDate: activity.endDate ? activity.endDate.toISODate() : null,
-                dependency: activity.dependency,
-                type: activity.type || 'Default'
+                dependency: activity.dependency
             })),
             exportedAt: new Date().toISOString(),
             version: '1.0'
@@ -888,7 +980,7 @@ function updateDependenciesSelect() {
         // Create and download JSON file
         const dataStr = JSON.stringify(exportData, null, 2);
         const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        const exportFileDefaultName = `schedule-\${new Date().toISOString().slice(0,10)}.json`;
+        const exportFileDefaultName = `schedule-${new Date().toISOString().slice(0,10)}.json`;
         
         const linkElement = document.createElement('a');
         linkElement.setAttribute('href', dataUri);
@@ -923,7 +1015,7 @@ function updateDependenciesSelect() {
                             name: activityData.name,
                             duration: activityData.duration,
                             dependency: activityData.dependency || null,
-                            type: activityData.type || 'Default',                            startDate: null,
+                            startDate: null,
                             endDate: null
                         };
                         state.activities.push(activity);
@@ -955,6 +1047,7 @@ function updateDependenciesSelect() {
                 // Update UI
                 renderActivitiesList();
     updateDependenciesSelect();
+        updateTypeFilterAndSuggestions();
                 renderScheduleTimeline();
                 renderCalendar();
                 

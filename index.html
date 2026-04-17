@@ -68,8 +68,8 @@
                             <option value="Other">
                         </datalist>
                     </div>
-                        <label for="dependency">Dependencies (Optional)</label>
-                        <select id="dependencies" multiple>
+                        <label for="dependency">Dependency (Optional)</label>
+                        <select id="dependencies">
                             <option value="">None</option>
                         </select>
                     </div>
@@ -81,6 +81,13 @@
 
                 <div class="activities-list">
                     <h3>Activities Added</h3>
+                <div class="type-filter-controls" style="margin-bottom: 15px;">
+                    <label for="typeFilter" style="margin-right: 10px;">Filter by Type:</label>
+                    <select id="typeFilter" style="padding: 5px; margin-right: 15px;">
+                        <option value="">All Types</option>
+                    </select>
+                    <button id="quickDeleteType" class="btn-danger" style="padding: 5px 10px;"><i class="fas fa-trash"></i> Delete All of Selected Type</button>
+                </div>
                     <div id="activitiesContainer">
                         <p class="empty-message">No activities added yet. Add your first activity above.</p>
                     </div>

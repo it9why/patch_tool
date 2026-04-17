@@ -1,27 +1,18 @@
-import sys
+import re
 
 with open('script-enhanced.js', 'r') as f:
     lines = f.readlines()
 
-# Find the line with the alert about date format
+# Find the line containing "});" at the end of the file.
 for i, line in enumerate(lines):
-    if "alert('Please enter a valid date in YYYY-MM-DD format');" in line:
-        # Insert a closing brace after this line, but before the next non-empty line that is not a comment.
-        # We'll insert after the alert line.
-        # Ensure we don't duplicate.
-        # Check if the next line is already a closing brace.
-        if i+1 < len(lines) and lines[i+1].strip() == '}':
-            print("Closing brace already exists")
-        else:
-            # Insert a line with just '}'
-            lines.insert(i+1, '        }\n')
-            print("Inserted missing closing brace at line", i+2)
-        break
-
-# Also check for missing brace after the editActivity function? We'll leave that for now.
+    if line.strip() == '});':
+        # Insert a '}' line before this line if the previous line is not a '}'
+        if i > 0 and lines[i-1].strip() != '}':
+            lines.insert(i, '    }\n')
+            break
 
 # Write back
 with open('script-enhanced.js', 'w') as f:
     f.writelines(lines)
 
-print("Fixed missing brace in editActivityDate function")
+print('Added missing closing brace for generateId function.')
