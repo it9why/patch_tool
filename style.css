@@ -304,20 +304,38 @@ button {
     
     .calendar-grid.expanded {
         gap: 15px;
+        grid-template-columns: repeat(7, minmax(100px, 1fr));
     }
     
     .calendar-grid.expanded .calendar-day {
         padding: 20px;
+        aspect-ratio: auto;
+        min-height: 120px;
     }
     
     .calendar-grid.expanded .calendar-day-number {
-        font-size: 1.1rem;
-        margin-bottom: 5px;
+        font-size: 1.2rem;
+        margin-bottom: 8px;
     }
     
     .calendar-grid.expanded .calendar-day-content {
-        font-size: 0.75rem;
-        max-height: 75%;
+        font-size: 0.85rem;
+        max-height: 80%;
+    }
+    
+    .calendar-section.expanded {
+        grid-column: 1 / -1;
+        grid-row: 1;
+    }
+    
+    .calendar-section.expanded ~ .schedule-list {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+    
+    .calendar-section.expanded ~ .input-section {
+        grid-column: 1 / -1;
+        grid-row: 3;
     }
 
 .calendar-day-header {
