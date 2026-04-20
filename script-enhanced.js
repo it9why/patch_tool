@@ -40,10 +40,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const importFileInput = document.getElementById('importFile');
     const expandCalendarBtn = document.getElementById('expandCalendar');
 
-    // Initialize date picker with today's date
+    // Initialize date picker with today's date (no minimum date restriction)
     const today = DateTime.now().toISODate();
     startDateInput.value = today;
-    startDateInput.min = today;
+    // Removed: startDateInput.min = today; to allow dates earlier than current date
 
 
     // Event Listeners
@@ -884,23 +884,29 @@ function updateDependenciesSelect() {
             return;
         }
         
-        // Prepare schedule data for export
+        // Prepare combined data for export - include activities and schedule with IDs
         const exportData = {
-            schedule: state.schedule.map(activity => ({
+            activities: state.activities.map(activity => ({
+                id: activity.id,
                 name: activity.name,
                 duration: activity.duration,
+                dependency: activity.dependency,
+                type: activity.type || 'Default',
+                allowNonWorkingDays: activity.allowNonWorkingDays || false
+            })),
+            schedule: state.schedule.map(activity => ({
+                id: activity.id,
                 startDate: activity.startDate ? activity.startDate.toISODate() : null,
-                endDate: activity.endDate ? activity.endDate.toISODate() : null,
-                dependency: activity.dependency
+                endDate: activity.endDate ? activity.endDate.toISODate() : null
             })),
             exportedAt: new Date().toISOString(),
-            version: '1.0'
+            version: '3.0'
         };
         
         // Create and download JSON file
         const dataStr = JSON.stringify(exportData, null, 2);
         const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        const exportFileDefaultName = `schedule-${new Date().toISOString().slice(0,10)}.json`;
+        const exportFileDefaultName = `schedule-with-activities-${new Date().toISOString().slice(0,10)}.json`;
         
         const linkElement = document.createElement('a');
         linkElement.setAttribute('href', dataUri);
@@ -926,10 +932,60 @@ function updateDependenciesSelect() {
                 state.schedule = [];
                 state.startDate = null;
                 
-                // Check if it's activities or schedule data
-                if (importData.activities) {
+                // Check version to determine format
+                const version = importData.version || '1.0';
+                
+                // Version 3.0: Combined activities and schedule
+                if (version === '3.0' && importData.activities && importData.schedule) {
+                    // Import activities with IDs (same as version 2.0)
+                    const importedActivities = [];
+                    const idMap = {};
+                    
+                    importData.activities.forEach(activityData => {
+                        const activity = {
+                            id: activityData.id,
+                            name: activityData.name,
+                            duration: activityData.duration,
+                            dependency: activityData.dependency || null,
+                            type: activityData.type || 'Default',
+                            allowNonWorkingDays: activityData.allowNonWorkingDays || false,
+                            startDate: null,
+                            endDate: null
+                        };
+                        importedActivities.push(activity);
+                        idMap[activity.id] = activity;
+                    });
+                    
+                    // Resolve dependencies by ID
+                    importedActivities.forEach(activity => {
+                        if (activity.dependency && !idMap[activity.dependency]) {
+                            // Dependency ID not found in imported set
+                            activity.dependency = null;
+                        }
+                    });
+                    
+                    // Add to state
+                    importedActivities.forEach(activity => state.activities.push(activity));
+                    
+                    // Now process schedule entries
+                    importData.schedule.forEach(scheduleEntry => {
+                        const activity = state.activities.find(a => a.id === scheduleEntry.id);
+                        if (activity) {
+                            activity.startDate = scheduleEntry.startDate ? DateTime.fromISO(scheduleEntry.startDate) : null;
+                            activity.endDate = scheduleEntry.endDate ? DateTime.fromISO(scheduleEntry.endDate) : null;
+                            
+                            if (activity.startDate) {
+                                state.schedule.push({ ...activity });
+                            }
+                        }
+                    });
+                    
+                    alert(`Successfully imported ${importData.activities.length} activities and ${importData.schedule.length} schedule entries!`);
+                }
+                // Version 2.0: Activities with IDs
+                else if (importData.activities) {
                     // Check version to determine if IDs are included
-                    const hasIds = importData.version === '2.0' && importData.activities.every(a => a.id);
+                    const hasIds = version === '2.0' && importData.activities.every(a => a.id);
                     
                     // First, collect all imported activities in a temporary array
                     const importedActivities = [];
@@ -986,7 +1042,7 @@ function updateDependenciesSelect() {
                     alert(`Successfully imported ${importData.activities.length} activities!`);
                 } else if (importData.schedule) {
                     // Import schedule - preserve IDs if available
-                    const hasIds = importData.version === '2.0' && importData.schedule.every(a => a.id);
+                    const hasIds = version === '2.0' && importData.schedule.every(a => a.id);
                     importData.schedule.forEach(scheduleData => {
                         const activity = {
                             id: hasIds ? scheduleData.id : generateId(),
