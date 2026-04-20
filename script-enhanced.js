@@ -1067,10 +1067,10 @@ function updateDependenciesSelect() {
         state.calendarExpanded = !state.calendarExpanded;
         calendarElement.classList.toggle('expanded', state.calendarExpanded);
         
-        // Get the calendar section and toggle expanded class
-        const calendarSection = document.querySelector('.calendar-section');
-        if (calendarSection) {
-            calendarSection.classList.toggle('expanded', state.calendarExpanded);
+        // Get the main content container and toggle expanded class
+        const mainContent = document.querySelector('.main-content');
+        if (mainContent) {
+            mainContent.classList.toggle('calendar-expanded', state.calendarExpanded);
         }
         
         // Update button text and icon
