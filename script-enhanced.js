@@ -603,6 +603,16 @@ function updateDependenciesSelect() {
         return isWorkingDay(date);
     }
 
+    // Function to check if a day is actually scheduled for an activity
+    function isDayScheduledForActivity(date, activity) {
+        if (!activity.startDate || !activity.endDate) return false;
+        const start = activity.startDate.startOf('day');
+        const end = activity.endDate.startOf('day');
+        const current = date.startOf('day');
+        if (!DateTime.isBetween(current, start, end)) return false;
+        return isDayAllowedForActivity(date, activity);
+    }
+
     // Function to render schedule timeline
     function renderScheduleTimeline() {
         if (state.schedule.length === 0) {
@@ -699,15 +709,9 @@ function updateDependenciesSelect() {
             }
             
             // Check for scheduled activities
-            const scheduledActivities = state.schedule.filter(activity => {
-                const activityStart = activity.startDate ? activity.startDate.startOf('day') : null;
-                const activityEnd = activity.endDate ? activity.endDate.startOf('day') : null;
-                const currentDay = currentDate.startOf('day');
-                
-                if (!activityStart || !activityEnd) return false;
-                
-                return DateTime.isBetween(currentDay, activityStart, activityEnd);
-            });
+            const scheduledActivities = state.schedule.filter(activity => 
+                isDayScheduledForActivity(currentDate, activity)
+            );
             
             if (scheduledActivities.length > 0) {
                 dayElement.classList.add('scheduled');
@@ -749,15 +753,9 @@ function updateDependenciesSelect() {
     function handleCalendarDayClick(dateString) {
         // Find activities that occur on this date
         const clickedDate = DateTime.fromISO(dateString);
-        const activitiesOnDate = state.schedule.filter(activity => {
-            const activityStart = activity.startDate ? activity.startDate.startOf('day') : null;
-            const activityEnd = activity.endDate ? activity.endDate.startOf('day') : null;
-            const currentDay = clickedDate.startOf('day');
-            
-            if (!activityStart || !activityEnd) return false;
-            
-            return DateTime.isBetween(currentDay, activityStart, activityEnd);
-        });
+        const activitiesOnDate = state.schedule.filter(activity => 
+            isDayScheduledForActivity(clickedDate, activity)
+        );
         
         if (activitiesOnDate.length > 0) {
             // Show menu to edit activity dates
