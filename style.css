@@ -294,12 +294,31 @@ button {
     text-align: center;
 }
 
-.calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 10px;
-    margin-bottom: 25px;
-}
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 10px;
+        margin-bottom: 25px;
+        transition: all 0.3s ease;
+    }
+    
+    .calendar-grid.expanded {
+        gap: 15px;
+    }
+    
+    .calendar-grid.expanded .calendar-day {
+        padding: 20px;
+    }
+    
+    .calendar-grid.expanded .calendar-day-number {
+        font-size: 1.1rem;
+        margin-bottom: 5px;
+    }
+    
+    .calendar-grid.expanded .calendar-day-content {
+        font-size: 0.75rem;
+        max-height: 75%;
+    }
 
 .calendar-day-header {
     text-align: center;
@@ -326,17 +345,18 @@ button {
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
-.calendar-day-number {
-    font-weight: 700;
-    font-size: 1.2rem;
-    margin-bottom: 5px;
-}
+    .calendar-day-number {
+        font-weight: 700;
+        font-size: 0.9rem;
+        margin-bottom: 2px;
+    }
 
-.calendar-day-content {
-    font-size: 0.75rem;
-    max-height: 60%;
-    overflow-y: auto;
-}
+    .calendar-day-content {
+        font-size: 0.65rem;
+        max-height: 70%;
+        overflow-y: auto;
+        line-height: 1.2;
+    }
 
 .calendar-day.holiday {
     background-color: rgba(255, 107, 107, 0.15);

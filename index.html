@@ -25,6 +25,8 @@
         .fa-calendar-download::before { content: "📥"; }
         .fa-edit::before { content: "✏️"; }
         .fa-calendar-edit::before { content: "📅✏️"; }
+        .fa-expand::before { content: "⛶"; }
+        .fa-compress::before { content: "🗗"; }
         
         /* Hide the empty Font Awesome icons if Unicode is shown */
         .fas {
@@ -127,6 +129,7 @@
                     <button id="prevMonth"><i class="fas fa-chevron-left"></i></button>
                     <h3 id="currentMonth">April 2026</h3>
                     <button id="nextMonth"><i class="fas fa-chevron-right"></i></button>
+                    <button id="expandCalendar" class="btn-secondary" style="margin-left: 10px;"><i class="fas fa-expand"></i> Expand</button>
                 </div>
                 <div id="calendar" class="calendar-grid">
                     <!-- Calendar will be generated here -->

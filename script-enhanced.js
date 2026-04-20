@@ -9,7 +9,8 @@ document.addEventListener('DOMContentLoaded', function() {
         schedule: [],
         currentDate: DateTime.now(),
         calendarMonth: DateTime.now(),
-        startDate: null
+        startDate: null,
+        calendarExpanded: false
     };
 
     // DOM Elements
@@ -37,6 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const importActivitiesBtn = document.getElementById('importActivities');
     const exportScheduleBtn = document.getElementById('exportSchedule');
     const importFileInput = document.getElementById('importFile');
+    const expandCalendarBtn = document.getElementById('expandCalendar');
 
     // Initialize date picker with today's date
     const today = DateTime.now().toISODate();
@@ -65,6 +67,11 @@ document.addEventListener('DOMContentLoaded', function() {
     importActivitiesBtn.addEventListener('click', () => importFileInput.click());
     exportScheduleBtn.addEventListener('click', exportSchedule);
     importFileInput.addEventListener('change', handleFileImport);
+    
+    // Expand calendar button
+    if (expandCalendarBtn) {
+        expandCalendarBtn.addEventListener('click', toggleExpandCalendar);
+    }
 
     // Initialize calendar
     renderCalendar();
@@ -246,10 +253,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Show current dependency and let user edit
         let currentDep = '';
+        let currentDepName = '';
         if (activity.dependency) {
-            currentDep = getActivityName(activity.dependency);
+            currentDep = activity.dependency;
+            currentDepName = getActivityName(activity.dependency);
         }
-        const depsPrompt = prompt('Edit dependency (enter activity ID, leave empty for none).\nCurrent dependency: ' + currentDep + '\nAvailable activities:\n' + 
+        const depsPrompt = prompt('Edit dependency (enter activity ID, leave empty for none).\nCurrent dependency ID: ' + currentDep + ' (' + currentDepName + ')\n\nYou can copy the ID from the input below.\n\nAvailable activities:\n' + 
             state.activities.filter(a => a.id !== id).map(a => a.id + ': ' + a.name).join('\n'), 
             activity.dependency || '');
         
@@ -844,9 +853,10 @@ function updateDependenciesSelect() {
             return;
         }
         
-        // Prepare data for export
+        // Prepare data for export - include IDs to preserve dependencies
         const exportData = {
             activities: state.activities.map(activity => ({
+                id: activity.id,
                 name: activity.name,
                 duration: activity.duration,
                 dependency: activity.dependency,
@@ -854,7 +864,7 @@ function updateDependenciesSelect() {
                 allowNonWorkingDays: activity.allowNonWorkingDays || false
             })),
             exportedAt: new Date().toISOString(),
-            version: '1.0'
+            version: '2.0'
         };
         
         // Create and download JSON file
@@ -918,10 +928,16 @@ function updateDependenciesSelect() {
                 
                 // Check if it's activities or schedule data
                 if (importData.activities) {
-                    // Import activities
+                    // Check version to determine if IDs are included
+                    const hasIds = importData.version === '2.0' && importData.activities.every(a => a.id);
+                    
+                    // First, collect all imported activities in a temporary array
+                    const importedActivities = [];
+                    const idMap = {};
+                    
                     importData.activities.forEach(activityData => {
                         const activity = {
-                            id: generateId(),
+                            id: hasIds ? activityData.id : generateId(),
                             name: activityData.name,
                             duration: activityData.duration,
                             dependency: activityData.dependency || null,
@@ -930,15 +946,50 @@ function updateDependenciesSelect() {
                             startDate: null,
                             endDate: null
                         };
-                        state.activities.push(activity);
+                        importedActivities.push(activity);
+                        idMap[activity.id] = activity;
                     });
+                    
+                    // Resolve dependencies for new version (by ID)
+                    if (hasIds) {
+                        importedActivities.forEach(activity => {
+                            if (activity.dependency && !idMap[activity.dependency]) {
+                                // Dependency ID not found in imported set
+                                activity.dependency = null;
+                            }
+                        });
+                    } else {
+                        // Old version: dependencies are stored as names
+                        // Create a mapping from activity name to ID (assuming names are unique)
+                        const nameToId = {};
+                        importedActivities.forEach(activity => {
+                            nameToId[activity.name] = activity.id;
+                        });
+                        
+                        // Update dependencies
+                        importedActivities.forEach(activity => {
+                            if (activity.dependency) {
+                                // Find the dependency by name
+                                const depActivity = importedActivities.find(a => a.name === activity.dependency);
+                                if (depActivity) {
+                                    activity.dependency = depActivity.id;
+                                } else {
+                                    activity.dependency = null;
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Add to state
+                    importedActivities.forEach(activity => state.activities.push(activity));
                     
                     alert(`Successfully imported ${importData.activities.length} activities!`);
                 } else if (importData.schedule) {
-                    // Import schedule
+                    // Import schedule - preserve IDs if available
+                    const hasIds = importData.version === '2.0' && importData.schedule.every(a => a.id);
                     importData.schedule.forEach(scheduleData => {
                         const activity = {
-                            id: generateId(),
+                            id: hasIds ? scheduleData.id : generateId(),
                             name: scheduleData.name,
                             duration: scheduleData.duration,
                             dependency: scheduleData.dependency || null,
@@ -953,6 +1004,34 @@ function updateDependenciesSelect() {
                         }
                     });
                     
+                    // Fix dependencies for old version
+                    if (!hasIds) {
+                        const nameToId = {};
+                        state.activities.forEach(activity => {
+                            nameToId[activity.name] = activity.id;
+                        });
+                        state.activities.forEach(activity => {
+                            if (activity.dependency) {
+                                const depActivity = state.activities.find(a => a.name === activity.dependency);
+                                if (depActivity) {
+                                    activity.dependency = depActivity.id;
+                                } else {
+                                    activity.dependency = null;
+                                }
+                            }
+                        });
+                        state.schedule.forEach(activity => {
+                            if (activity.dependency) {
+                                const depActivity = state.activities.find(a => a.name === activity.dependency);
+                                if (depActivity) {
+                                    activity.dependency = depActivity.id;
+                                } else {
+                                    activity.dependency = null;
+                                }
+                            }
+                        });
+                    }
+                    
                     alert(`Successfully imported ${importData.schedule.length} scheduled activities!`);
                 } else {
                     throw new Error('Invalid file format');
@@ -960,8 +1039,8 @@ function updateDependenciesSelect() {
                 
                 // Update UI
                 renderActivitiesList();
-    updateDependenciesSelect();
-        updateTypeFilterAndSuggestions();
+                updateDependenciesSelect();
+                updateTypeFilterAndSuggestions();
                 renderScheduleTimeline();
                 renderCalendar();
                 
@@ -981,5 +1060,20 @@ function updateDependenciesSelect() {
     // Helper function to generate unique ID
     function generateId() {
         return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    // Function to toggle calendar expanded view
+    function toggleExpandCalendar() {
+        state.calendarExpanded = !state.calendarExpanded;
+        calendarElement.classList.toggle('expanded', state.calendarExpanded);
+        
+        // Update button text and icon
+        if (expandCalendarBtn) {
+            if (state.calendarExpanded) {
+                expandCalendarBtn.innerHTML = '<i class="fas fa-compress"></i> Compress';
+            } else {
+                expandCalendarBtn.innerHTML = '<i class="fas fa-expand"></i> Expand';
+            }
+        }
     }
 });
