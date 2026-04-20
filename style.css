@@ -320,8 +320,8 @@ button {
     
     .calendar-grid.expanded .calendar-day-content {
         font-size: 0.85rem;
-        max-height: 100px;
-        overflow-y: auto;
+        max-height: none;
+        overflow-y: visible;
     }
     
     .main-content.calendar-expanded {
@@ -363,14 +363,15 @@ button {
 }
 
 .calendar-day {
-    aspect-ratio: 1;
     padding: 12px;
     border-radius: 10px;
     background-color: white;
     border: 2px solid var(--light-gray);
     transition: var(--transition);
     position: relative;
-    overflow: hidden;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
 }
 
 .calendar-day:hover {
@@ -378,18 +379,22 @@ button {
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
-    .calendar-day-number {
-        font-weight: 700;
-        font-size: 0.9rem;
-        margin-bottom: 2px;
-    }
+.calendar-day-number {
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+    flex-shrink: 0;
+}
 
-    .calendar-day-content {
-        font-size: 0.65rem;
-        max-height: 70%;
-        overflow-y: auto;
-        line-height: 1.2;
-    }
+.calendar-day-content {
+    font-size: 0.65rem;
+    line-height: 1.3;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: visible;
+}
 
 .calendar-day.holiday {
     background-color: rgba(255, 107, 107, 0.15);
