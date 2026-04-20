@@ -1,4 +1,4 @@
-// Enhanced Task Scheduler with Import/Export, Templates, and Date Editing
+// Enhanced Task Scheduler with Import/Export and Date Editing
 document.addEventListener('DOMContentLoaded', function() {
     // Use DateUtils for date manipulation
     const DateTime = window.DateUtils || DateUtils;
@@ -9,8 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
         schedule: [],
         currentDate: DateTime.now(),
         calendarMonth: DateTime.now(),
-        startDate: null,
-        templates: loadTemplatesFromStorage()
+        startDate: null
     };
 
     // DOM Elements
@@ -34,22 +33,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const typeOptionsDatalist = document.getElementById('typeOptions');
     
     // New DOM Elements for enhanced features
-    const templateSelect = document.getElementById('templateSelect');
     const exportActivitiesBtn = document.getElementById('exportActivities');
     const importActivitiesBtn = document.getElementById('importActivities');
     const exportScheduleBtn = document.getElementById('exportSchedule');
     const importFileInput = document.getElementById('importFile');
-    const exportTemplateBtn = document.getElementById('exportTemplate');
-    const importTemplateBtn = document.getElementById('importTemplate');
-    const importTemplateFileInput = document.getElementById('importTemplateFile');
 
     // Initialize date picker with today's date
     const today = DateTime.now().toISODate();
     startDateInput.value = today;
     startDateInput.min = today;
 
-    // Initialize templates dropdown
-    updateTemplatesDropdown();
 
     // Event Listeners
     addActivityBtn.addEventListener('click', addActivity);
@@ -68,10 +61,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Enhanced feature event listeners
-    exportTemplateBtn.addEventListener('click', exportTemplate);
-    importTemplateBtn.addEventListener('click', () => importTemplateFileInput.click());
-    importTemplateFileInput.addEventListener('change', handleTemplateImport);
-    templateSelect.addEventListener('change', handleTemplateSelect);
     exportActivitiesBtn.addEventListener('click', exportActivities);
     importActivitiesBtn.addEventListener('click', () => importFileInput.click());
     exportScheduleBtn.addEventListener('click', exportSchedule);
@@ -848,170 +837,6 @@ function updateDependenciesSelect() {
         startDateInput.value = today;
     }
 
-    // Template Management Functions
-    function saveTemplate() {
-        if (state.activities.length === 0) {
-            alert('No activities to save as template');
-            return;
-        }
-        
-        const templateName = prompt('Enter a name for this template:');
-        if (!templateName) return;
-        
-        // Create template object without IDs (they will be regenerated on load)
-        const template = {
-            name: templateName,
-            activities: state.activities.map(activity => ({
-                name: activity.name,
-                duration: activity.duration,
-                dependency: null // Reset dependencies for templates
-            })),
-            createdAt: new Date().toISOString()
-        };
-        
-        // Save to templates
-        state.templates.push(template);
-        saveTemplatesToStorage(state.templates);
-        updateTemplatesDropdown();
-        
-        alert(`Template "${templateName}" saved successfully!`);
-    }
-
-    function loadTemplate() {
-        const selectedTemplateName = templateSelect.value;
-        if (!selectedTemplateName) {
-            alert('Please select a template first');
-            return;
-        }
-        
-        if (!confirm('Loading a template will replace your current activities. Continue?')) {
-            return;
-        }
-        
-        const template = state.templates.find(t => t.name === selectedTemplateName);
-        if (!template) {
-            alert('Template not found');
-            return;
-        }
-        
-        // Clear current activities
-        state.activities = [];
-        
-        // Load template activities with new IDs
-        template.activities.forEach(activityData => {
-            const activity = {
-                id: generateId(),
-                name: activityData.name,
-                duration: activityData.duration,
-                dependency: null,
-                startDate: null,
-                endDate: null
-            };
-            state.activities.push(activity);
-        });
-        
-        // Clear schedule
-        state.schedule = [];
-        state.startDate = null;
-        
-        // Update UI
-        renderActivitiesList();
-    updateDependenciesSelect();
-        updateTypeFilterAndSuggestions();
-        renderScheduleTimeline();
-        renderCalendar();
-        
-        alert(`Template "${template.name}" loaded successfully!`);
-    }
-
-    function exportTemplate() {
-        const selectedTemplateName = templateSelect.value;
-        if (!selectedTemplateName) {
-            alert('Please select a template to export');
-            return;
-        }
-
-        const template = state.templates.find(t => t.name === selectedTemplateName);
-        if (!template) {
-            alert('Template not found');
-            return;
-        }
-
-        // Prepare data for export
-        const exportData = {
-            ...template,
-            exportedAt: new Date().toISOString(),
-            version: '1.0'
-        };
-
-        // Create and download JSON file
-        const dataStr = JSON.stringify(exportData, null, 2);
-        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        const exportFileDefaultName = `template-${template.name}-${new Date().toISOString().slice(0,10)}.json`;
-
-        const linkElement = document.createElement('a');
-        linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', exportFileDefaultName);
-        linkElement.click();
-    }
-
-    function handleTemplateImport(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const importedTemplate = JSON.parse(e.target.result);
-
-                // Validate the template structure
-                if (!importedTemplate.name || !importedTemplate.activities) {
-                    throw new Error('Invalid template file format');
-                }
-
-                // Check if template with same name already exists
-                const existingTemplate = state.templates.find(t => t.name === importedTemplate.name);
-                if (existingTemplate) {
-                    if (!confirm(`Template "${importedTemplate.name}" already exists. Overwrite?`)) {
-                        return;
-                    }
-                    // Remove the existing template
-                    state.templates = state.templates.filter(t => t.name !== importedTemplate.name);
-                }
-
-                // Add the new template
-                state.templates.push(importedTemplate);
-                saveTemplatesToStorage(state.templates);
-                updateTemplatesDropdown();
-
-                alert(`Template "${importedTemplate.name}" imported successfully!`);
-            } catch (error) {
-                alert('Error importing template: ' + error.message);
-                console.error(error);
-            }
-
-            // Reset file input
-            event.target.value = '';
-        };
-
-        reader.readAsText(file);
-    }
-
-    function handleTemplateSelect() {
-        // Optional: Show template preview
-    }
-
-    function updateTemplatesDropdown() {
-        templateSelect.innerHTML = '<option value="">Select a template...</option>';
-        
-        state.templates.forEach(template => {
-            const option = document.createElement('option');
-            option.value = template.name;
-            option.textContent = `${template.name} (${template.activities.length} activities)`;
-            templateSelect.appendChild(option);
-        });
-    }
-
     // Import/Export Functions
     function exportActivities() {
         if (state.activities.length === 0) {
@@ -1152,24 +977,6 @@ function updateDependenciesSelect() {
         reader.readAsText(file);
     }
 
-    // Storage Functions
-    function loadTemplatesFromStorage() {
-        try {
-            const templatesJson = localStorage.getItem('activityTemplates');
-            return templatesJson ? JSON.parse(templatesJson) : [];
-        } catch (error) {
-            console.error('Error loading templates from storage:', error);
-            return [];
-        }
-    }
-
-    function saveTemplatesToStorage(templates) {
-        try {
-            localStorage.setItem('activityTemplates', JSON.stringify(templates));
-        } catch (error) {
-            console.error('Error saving templates to storage:', error);
-        }
-    }
 
     // Helper function to generate unique ID
     function generateId() {
