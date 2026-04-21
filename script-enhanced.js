@@ -238,6 +238,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const activity = state.activities.find(a => a.id === id);
         if (!activity) return;
 
+        // Store old values to compare for scheduling changes
+        const oldDuration = activity.duration;
+        const oldDependency = activity.dependency;
+        const oldAllowNonWorkingDays = activity.allowNonWorkingDays || false;
+        const oldStartDate = activity.startDate;
+        const oldEndDate = activity.endDate;
+
         // Create a form for editing
         const newName = prompt('Edit activity name:', activity.name);
         if (newName === null) return; // User cancelled
@@ -262,16 +269,21 @@ document.addEventListener('DOMContentLoaded', function() {
             state.activities.filter(a => a.id !== id).map(a => a.id + ': ' + a.name).join('\n'), 
             activity.dependency || '');
         
-        let newDependency = null;
-        if (depsPrompt !== null && depsPrompt.trim() !== '') {
-            const depId = depsPrompt.trim();
-            // Validate ID exists
-            if (!state.activities.find(a => a.id === depId)) {
-                alert('Invalid activity ID: ' + depId);
-                return;
+        let newDependency = activity.dependency; // Start with current dependency
+        if (depsPrompt !== null) {
+            if (depsPrompt.trim() === '') {
+                newDependency = null;
+            } else {
+                const depId = depsPrompt.trim();
+                // Validate ID exists
+                if (!state.activities.find(a => a.id === depId)) {
+                    alert('Invalid activity ID: ' + depId);
+                    return;
+                }
+                newDependency = depId;
             }
-            newDependency = depId;
         }
+        // If user cancels the prompt (depsPrompt === null), keep the current dependency
 
         // Prompt for allowNonWorkingDays
         const currentAllow = activity.allowNonWorkingDays || false;
@@ -283,12 +295,33 @@ document.addEventListener('DOMContentLoaded', function() {
         activity.dependency = newDependency;
         activity.allowNonWorkingDays = newAllow;
 
-        // If the activity is scheduled, we need to reschedule
-        // For now, we'll remove the schedule and let the user regenerate
-        // Remove from schedule
-        state.schedule = state.schedule.filter(a => a.id !== id);
-        activity.startDate = null;
-        activity.endDate = null;
+        // Check if scheduling properties changed
+        const schedulingChanged = 
+            oldDuration !== duration || 
+            oldDependency !== newDependency || 
+            oldAllowNonWorkingDays !== newAllow;
+
+        if (schedulingChanged) {
+            // Remove from schedule and reset dates
+            state.schedule = state.schedule.filter(a => a.id !== id);
+            activity.startDate = null;
+            activity.endDate = null;
+        } else {
+            // Scheduling properties unchanged - keep the schedule if it exists
+            const scheduleIndex = state.schedule.findIndex(a => a.id === id);
+            if (scheduleIndex !== -1) {
+                // Update the schedule entry with new name (and type if we had it)
+                state.schedule[scheduleIndex].name = activity.name;
+                state.schedule[scheduleIndex].duration = activity.duration;
+                state.schedule[scheduleIndex].dependency = activity.dependency;
+                state.schedule[scheduleIndex].allowNonWorkingDays = activity.allowNonWorkingDays;
+                // Keep the existing dates
+                activity.startDate = oldStartDate;
+                activity.endDate = oldEndDate;
+                state.schedule[scheduleIndex].startDate = oldStartDate;
+                state.schedule[scheduleIndex].endDate = oldEndDate;
+            }
+        }
 
         // Update UI
         renderActivitiesList();
