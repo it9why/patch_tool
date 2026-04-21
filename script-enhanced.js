@@ -193,6 +193,27 @@ document.addEventListener('DOMContentLoaded', function() {
             .replace(/'/g, '&#039;');
     }
 
+    // Helper function to find all activity IDs that depend on a given activity (transitive closure)
+    function getDependentActivityIds(activityId) {
+        const dependentIds = new Set();
+        const visited = new Set();
+        
+        function collectDeps(id) {
+            if (visited.has(id)) return;
+            visited.add(id);
+            
+            state.activities.forEach(activity => {
+                if (activity.dependency === id) {
+                    dependentIds.add(activity.id);
+                    collectDeps(activity.id);
+                }
+            });
+        }
+        
+        collectDeps(activityId);
+        return Array.from(dependentIds);
+    }
+
     // Function to edit activity date (exposed to window)
     window.editActivityDate = function(id) {
     try {
@@ -219,10 +240,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 state.schedule[scheduleIndex].endDate = endDate;
             }
             
+            // Find all activities that depend on this activity (directly or indirectly)
+            const dependentIds = getDependentActivityIds(id);
+            
+            // Remove dependent activities from schedule and reset their dates
+            dependentIds.forEach(depId => {
+                const depActivity = state.activities.find(a => a.id === depId);
+                if (depActivity) {
+                    depActivity.startDate = null;
+                    depActivity.endDate = null;
+                }
+                state.schedule = state.schedule.filter(a => a.id !== depId);
+            });
+            
             // Update UI
             renderActivitiesList();
             renderScheduleTimeline();
             renderCalendar();
+            
+            // Notify user if dependencies were affected
+            if (dependentIds.length > 0) {
+                const dependentNames = dependentIds.map(depId => {
+                    const depActivity = state.activities.find(a => a.id === depId);
+                    return depActivity ? depActivity.name : depId;
+                }).join(', ');
+                alert(`The following activities depend on "${activity.name}" and have been unscheduled: ${dependentNames}. You may need to regenerate the schedule.`);
+            }
         } else if (newStartDate !== null) {
             alert('Please enter a valid date in YYYY-MM-DD format');
         }
@@ -306,6 +349,26 @@ document.addEventListener('DOMContentLoaded', function() {
             state.schedule = state.schedule.filter(a => a.id !== id);
             activity.startDate = null;
             activity.endDate = null;
+
+            // Also unschedule all activities that depend on this one (directly or indirectly)
+            const dependentIds = getDependentActivityIds(id);
+            dependentIds.forEach(depId => {
+                const depActivity = state.activities.find(a => a.id === depId);
+                if (depActivity) {
+                    depActivity.startDate = null;
+                    depActivity.endDate = null;
+                }
+                state.schedule = state.schedule.filter(a => a.id !== depId);
+            });
+
+            // Notify the user if dependencies were affected
+            if (dependentIds.length > 0) {
+                const dependentNames = dependentIds.map(depId => {
+                    const depActivity = state.activities.find(a => a.id === depId);
+                    return depActivity ? depActivity.name : depId;
+                }).join(', ');
+                alert(`The following activities depend on "${activity.name}" and have been unscheduled: ${dependentNames}. You may need to regenerate the schedule.`);
+            }
         } else {
             // Scheduling properties unchanged - keep the schedule if it exists
             const scheduleIndex = state.schedule.findIndex(a => a.id === id);
@@ -573,6 +636,14 @@ function updateDependenciesSelect() {
         });
 
         let currentDate = state.startDate;
+        
+        // Adjust currentDate to be after the last manually scheduled activity
+        manuallyScheduled.forEach(activity => {
+            if (activity.endDate && activity.endDate.valueOf() >= currentDate.valueOf()) {
+                currentDate = activity.endDate.plus({ days: 1 });
+            }
+        });
+        
         let availableActivities = toAutoSchedule.filter(a => 
             !scheduledActivities.has(a.id) && 
             (a.dependency === null || scheduledActivities.has(a.dependency))
