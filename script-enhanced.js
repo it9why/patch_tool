@@ -606,13 +606,12 @@ function updateDependenciesSelect() {
         const activitiesToSchedule = [...state.activities];
         const scheduledActivities = new Set();
         
-        // Initialize all activities
+        // Initialize all activities - reset all auto-scheduled dates
+        // Activities that were manually edited via Edit Date keep their dates
+        // All other activities get reset for fresh scheduling
         activitiesToSchedule.forEach(activity => {
-            // Only reset dates if they weren't manually set
-            if (!activity.startDate) {
-                activity.startDate = null;
-                activity.endDate = null;
-            }
+            activity.startDate = null;
+            activity.endDate = null;
         });
 
         // Function to schedule an activity
