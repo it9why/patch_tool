@@ -330,7 +330,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Prompt for allowNonWorkingDays
         const currentAllow = activity.allowNonWorkingDays || false;
-        const newAllow = confirm('Allow on non-working days?\n\nCurrent: ' + (currentAllow ? 'Yes' : 'No') + '\n\nClick OK for Yes, Cancel for No.');
+        const allowResponse = prompt('Allow on non‑working days? Enter "yes" or "no".\nCurrent: ' + (currentAllow ? 'Yes' : 'No'), currentAllow ? 'yes' : 'no');
+        let newAllow = currentAllow;
+        if (allowResponse !== null) {
+            newAllow = allowResponse.trim().toLowerCase() === 'yes';
+        }
         
         // Update activity
         activity.name = newName.trim();
@@ -697,9 +701,19 @@ function updateDependenciesSelect() {
         return true;
     }
 
+    // Helper function to convert any value to boolean
+    function toBoolean(value) {
+        if (typeof value === 'string') {
+            return value.toLowerCase() === 'true';
+        }
+        return !!value;
+    }
+
     // Function to check if a day is allowed for an activity
     function isDayAllowedForActivity(date, activity) {
-        if (activity.allowNonWorkingDays) {
+        // Ensure allowNonWorkingDays is a boolean (defensive)
+        const allowNonWorking = toBoolean(activity.allowNonWorkingDays);
+        if (allowNonWorking) {
             return true; // Activity can be scheduled on any day
         }
         return isWorkingDay(date);
