@@ -227,16 +227,18 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (newStartDate && newStartDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
             const startDate = DateTime.fromISO(newStartDate);
-            const endDate = calculateEndDate(startDate, activity);
+            const result = calculateEndDate(startDate, activity);
+            const adjustedStartDate = result.startDate;
+            const endDate = result.endDate;
             
             // Update activity dates
-            activity.startDate = startDate;
+            activity.startDate = adjustedStartDate;
             activity.endDate = endDate;
             
             // Update schedule if this activity is scheduled
             const scheduleIndex = state.schedule.findIndex(a => a.id === id);
             if (scheduleIndex !== -1) {
-                state.schedule[scheduleIndex].startDate = startDate;
+                state.schedule[scheduleIndex].startDate = adjustedStartDate;
                 state.schedule[scheduleIndex].endDate = endDate;
             }
             
@@ -407,16 +409,27 @@ document.addEventListener('DOMContentLoaded', function() {
         let currentDate = startDate;
         let daysScheduled = 0;
         
+        // Skip non-allowed days until we find the first allowed day
+        while (!isDayAllowedForActivity(currentDate, activity)) {
+            currentDate = currentDate.plus({ days: 1 });
+        }
+        const actualStartDate = currentDate;
+        
         while (daysScheduled < activity.duration) {
-            if (!isDayAllowedForActivity(currentDate, activity)) {
-                currentDate = currentDate.plus({ days: 1 });
-                continue;
-            }
+            // currentDate is allowed
             daysScheduled++;
             if (daysScheduled === activity.duration) break;
             currentDate = currentDate.plus({ days: 1 });
+            // Skip non-allowed days if any
+            while (!isDayAllowedForActivity(currentDate, activity)) {
+                currentDate = currentDate.plus({ days: 1 });
+            }
         }
-        return currentDate;
+        
+        return {
+            startDate: actualStartDate,
+            endDate: currentDate
+        };
     }
 
     // Function to update dependency select dropdown
@@ -607,21 +620,24 @@ function updateDependenciesSelect() {
             let currentDate = startDate;
             let daysScheduled = 0;
             
-            while (daysScheduled < activity.duration) {
-                // Skip weekends and holidays unless activity allows non-working days
-                if (!isDayAllowedForActivity(currentDate, activity)) {
-                    currentDate = currentDate.plus({ days: 1 });
-                    continue;
-                }
-                
-                daysScheduled++;
-                if (daysScheduled === activity.duration) {
-                    break;
-                }
+            // Skip non-allowed days until we find the first allowed day
+            while (!isDayAllowedForActivity(currentDate, activity)) {
                 currentDate = currentDate.plus({ days: 1 });
             }
+            const actualStartDate = currentDate;
             
-            activity.startDate = startDate;
+            while (daysScheduled < activity.duration) {
+                // currentDate is allowed
+                daysScheduled++;
+                if (daysScheduled === activity.duration) break;
+                currentDate = currentDate.plus({ days: 1 });
+                // Skip non-allowed days if any
+                while (!isDayAllowedForActivity(currentDate, activity)) {
+                    currentDate = currentDate.plus({ days: 1 });
+                }
+            }
+            
+            activity.startDate = actualStartDate;
             activity.endDate = currentDate;
             scheduledActivities.add(activity.id);
             state.schedule.push({ ...activity });
@@ -902,15 +918,17 @@ function updateDependenciesSelect() {
                     const activity = state.activities.find(a => a.name.toLowerCase() === activityName.toLowerCase());
                     if (activity) {
                         const startDate = DateTime.fromISO(dateString);
-                        const endDate = calculateEndDate(startDate, activity);
+                        const result = calculateEndDate(startDate, activity);
+                        const adjustedStartDate = result.startDate;
+                        const endDate = result.endDate;
                         
-                        activity.startDate = startDate;
+                        activity.startDate = adjustedStartDate;
                         activity.endDate = endDate;
                         
                         // Update schedule
                         const scheduleIndex = state.schedule.findIndex(a => a.id === activity.id);
                         if (scheduleIndex !== -1) {
-                            state.schedule[scheduleIndex].startDate = startDate;
+                            state.schedule[scheduleIndex].startDate = adjustedStartDate;
                             state.schedule[scheduleIndex].endDate = endDate;
                         } else {
                             state.schedule.push({ ...activity });
