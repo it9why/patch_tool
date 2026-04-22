@@ -61,9 +61,18 @@ const hongKongHolidays = {
     ]
 };
 
+// Helper function to format a Date as YYYY-MM-DD using LOCAL date components
+// (toISOString uses UTC which can shift the date in timezones like Hong Kong UTC+8)
+function formatLocalDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 // Function to check if a date is a Hong Kong public holiday
 function isHongKongHoliday(date) {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = formatLocalDate(date);
     const year = date.getFullYear().toString();
     
     if (hongKongHolidays[year]) {
@@ -74,7 +83,7 @@ function isHongKongHoliday(date) {
 
 // Function to get holiday name for a date
 function getHolidayName(date) {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = formatLocalDate(date);
     const year = date.getFullYear().toString();
     
     if (hongKongHolidays[year]) {
@@ -90,8 +99,8 @@ function getHolidaysForMonth(year, month) {
     if (!hongKongHolidays[yearStr]) return [];
     
     return hongKongHolidays[yearStr].filter(holiday => {
-        const holidayDate = new Date(holiday.date);
-        return holidayDate.getFullYear() === year && holidayDate.getMonth() === month;
+        const parts = holiday.date.split('-').map(Number);
+        return parts[0] === year && (parts[1] - 1) === month;
     });
 }
 
