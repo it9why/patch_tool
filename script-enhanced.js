@@ -186,10 +186,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function escapeHtml(text) {
         if (typeof text !== 'string') return text;
         return text
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
+            .replace(/&/g, '&')
+            .replace(/</g, '<')
+            .replace(/>/g, '>')
+            .replace(/"/g, '"')
             .replace(/'/g, '&#039;');
     }
 
@@ -606,10 +606,12 @@ function updateDependenciesSelect() {
         const activitiesToSchedule = [...state.activities];
         const scheduledActivities = new Set();
         
-        // Initialize all activities - reset all auto-scheduled dates
-        // Activities that were manually edited via Edit Date keep their dates
-        // All other activities get reset for fresh scheduling
-        activitiesToSchedule.forEach(activity => {
+        // Separate activities with manually set dates (non-null startDate)
+        const manuallyScheduled = activitiesToSchedule.filter(a => a.startDate !== null);
+        const toAutoSchedule = activitiesToSchedule.filter(a => a.startDate === null);
+
+        // Reset only auto-scheduled activities
+        toAutoSchedule.forEach(activity => {
             activity.startDate = null;
             activity.endDate = null;
         });
@@ -644,10 +646,6 @@ function updateDependenciesSelect() {
             return currentDate.plus({ days: 1 }); // Next available date for this activity's timeline
         };
 
-        // Separate activities with manually set dates
-        const manuallyScheduled = activitiesToSchedule.filter(a => a.startDate !== null);
-        const toAutoSchedule = activitiesToSchedule.filter(a => a.startDate === null);
-        
         // Add manually scheduled activities to schedule
         manuallyScheduled.forEach(activity => {
             scheduledActivities.add(activity.id);
@@ -699,8 +697,6 @@ function updateDependenciesSelect() {
                 const nextAvailableForType = scheduleActivityFromStart(activity, startDate);
                 // Update the next available date for this type
                 nextAvailableByType[type] = nextAvailableForType;
-                scheduledActivities.add(activity.id);
-                state.schedule.push({ ...activity });
             }
 
             // Update available activities
