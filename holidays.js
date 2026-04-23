@@ -41,23 +41,23 @@ const hongKongHolidays = {
         { date: "2025-12-26", name: "Boxing Day" }
     ],
     "2026": [
-        { date: "2026-01-01", name: "New Year's Day" },
-        { date: "2026-02-17", name: "Chinese New Year (Day 1)" },
-        { date: "2026-02-18", name: "Chinese New Year (Day 2)" },
-        { date: "2026-02-19", name: "Chinese New Year (Day 3)" },
+        { date: "2026-01-01", name: "The first day of January" },
+        { date: "2026-02-17", name: "Lunar New Year's Day" },
+        { date: "2026-02-18", name: "The second day of Lunar New Year" },
+        { date: "2026-02-19", name: "The third day of Lunar New Year" },
         { date: "2026-04-03", name: "Good Friday" },
-        { date: "2026-04-04", name: "Holy Saturday" },
-        { date: "2026-04-06", name: "Easter Monday" },
-        { date: "2026-04-05", name: "Ching Ming Festival" },
+        { date: "2026-04-04", name: "The day following Good Friday" },
+        { date: "2026-04-06", name: "The day following Ching Ming Festival" },
+        { date: "2026-04-07", name: "The day following Easter Monday" },
         { date: "2026-05-01", name: "Labour Day" },
-        { date: "2026-05-24", name: "Buddha's Birthday" },
-        { date: "2026-06-19", name: "Tuen Ng (Dragon Boat) Festival" },
+        { date: "2026-05-25", name: "The day following the Birthday of the Buddha" },
+        { date: "2026-06-19", name: "Tuen Ng Festival" },
         { date: "2026-07-01", name: "Hong Kong Special Administrative Region Establishment Day" },
-        { date: "2026-09-27", name: "Day after Mid-Autumn Festival" },
+        { date: "2026-09-26", name: "The day following the Chinese Mid-Autumn Festival" },
         { date: "2026-10-01", name: "National Day" },
-        { date: "2026-10-19", name: "Chung Yeung Festival" },
+        { date: "2026-10-19", name: "The day following Chung Yeung Festival" },
         { date: "2026-12-25", name: "Christmas Day" },
-        { date: "2026-12-26", name: "Boxing Day" }
+        { date: "2026-12-26", name: "The first weekday after Christmas Day" }
     ]
 };
 
