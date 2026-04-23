@@ -614,8 +614,8 @@ function updateDependenciesSelect() {
             activity.endDate = null;
         });
 
-        // Function to schedule an activity
-        const scheduleActivity = (activity, startDate) => {
+        // Function to schedule an activity given a start date
+        const scheduleActivityFromStart = (activity, startDate) => {
             let currentDate = startDate;
             let daysScheduled = 0;
             
@@ -641,7 +641,7 @@ function updateDependenciesSelect() {
             scheduledActivities.add(activity.id);
             state.schedule.push({ ...activity });
             
-            return currentDate.plus({ days: 1 }); // Next available date
+            return currentDate.plus({ days: 1 }); // Next available date for this activity's timeline
         };
 
         // Separate activities with manually set dates
@@ -654,33 +654,59 @@ function updateDependenciesSelect() {
             state.schedule.push({ ...activity });
         });
 
-        let currentDate = state.startDate;
-        
-        // Adjust currentDate to be after the last manually scheduled activity
-        manuallyScheduled.forEach(activity => {
-            if (activity.endDate && activity.endDate.valueOf() >= currentDate.valueOf()) {
-                currentDate = activity.endDate.plus({ days: 1 });
-            }
+        // Track next available date for each activity type
+        const nextAvailableByType = {};
+        // Initialize with start date for each type present
+        const allTypes = [...new Set(toAutoSchedule.map(a => a.type || 'Default'))];
+        allTypes.forEach(type => {
+            nextAvailableByType[type] = state.startDate;
         });
         
+        // Also need to adjust for manually scheduled activities that may occupy time for their type
+        manuallyScheduled.forEach(activity => {
+            const type = activity.type || 'Default';
+            if (activity.endDate && activity.endDate.valueOf() >= nextAvailableByType[type].valueOf()) {
+                nextAvailableByType[type] = activity.endDate.plus({ days: 1 });
+            }
+        });
+
         let availableActivities = toAutoSchedule.filter(a => 
             !scheduledActivities.has(a.id) && 
-            (a.dependency === null || scheduledActivities.has(a.dependency))
+            (a.dependency == null || scheduledActivities.has(a.dependency))
         );
 
         while (availableActivities.length > 0) {
             // Sort by duration (shortest first) for better scheduling
             availableActivities.sort((a, b) => a.duration - b.duration);
             
-            // Schedule all available activities
+            // Schedule all available activities, each according to its type timeline
             for (const activity of availableActivities) {
-                currentDate = scheduleActivity(activity, currentDate);
+                const type = activity.type || 'Default';
+                let startDate = nextAvailableByType[type];
+                
+                // If activity has a dependency, ensure we start after the dependency ends
+                if (activity.dependency) {
+                    const dependency = state.activities.find(a => a.id === activity.dependency);
+                    if (dependency && dependency.endDate) {
+                        const dependencyEnd = dependency.endDate.plus({ days: 1 });
+                        if (DateTime.isAfter(dependencyEnd, startDate)) {
+                            startDate = dependencyEnd;
+                        }
+                    }
+                }
+                
+                // Schedule the activity from the computed start date
+                const nextAvailableForType = scheduleActivityFromStart(activity, startDate);
+                // Update the next available date for this type
+                nextAvailableByType[type] = nextAvailableForType;
+                scheduledActivities.add(activity.id);
+                state.schedule.push({ ...activity });
             }
 
             // Update available activities
             availableActivities = toAutoSchedule.filter(a => 
                 !scheduledActivities.has(a.id) && 
-                (a.dependency === null || scheduledActivities.has(a.dependency))
+                (a.dependency == null || scheduledActivities.has(a.dependency))
             );
         }
 
