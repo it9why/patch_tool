@@ -1083,7 +1083,7 @@ function updateDependenciesSelect() {
                             duration: activityData.duration,
                             dependency: activityData.dependency || null,
                             type: activityData.type || 'Default',
-                            allowNonWorkingDays: activityData.allowNonWorkingDays || false,
+                            allowNonWorkingDays: toBoolean(activityData.allowNonWorkingDays),
                             startDate: null,
                             endDate: null
                         };
@@ -1133,7 +1133,7 @@ function updateDependenciesSelect() {
                             duration: activityData.duration,
                             dependency: activityData.dependency || null,
                             type: activityData.type || 'Default',
-                            allowNonWorkingDays: activityData.allowNonWorkingDays || false,
+                            allowNonWorkingDays: toBoolean(activityData.allowNonWorkingDays),
                             startDate: null,
                             endDate: null
                         };
@@ -1185,7 +1185,7 @@ function updateDependenciesSelect() {
                             duration: scheduleData.duration,
                             dependency: scheduleData.dependency || null,
                             type: scheduleData.type || 'Default',
-                            allowNonWorkingDays: scheduleData.allowNonWorkingDays || false,
+                            allowNonWorkingDays: toBoolean(scheduleData.allowNonWorkingDays),
                             startDate: scheduleData.startDate ? DateTime.fromISO(scheduleData.startDate) : null,
                             endDate: scheduleData.endDate ? DateTime.fromISO(scheduleData.endDate) : null
                         };
