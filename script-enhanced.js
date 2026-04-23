@@ -648,14 +648,20 @@ function updateDependenciesSelect() {
 
         // Add manually scheduled activities to schedule
         manuallyScheduled.forEach(activity => {
-            scheduledActivities.add(activity.id);
-            state.schedule.push({ ...activity });
+            if (activity.startDate) {
+                // Ensure the activity has both dates and they are consistent
+                const result = calculateEndDate(activity.startDate, activity);
+                activity.startDate = result.startDate;
+                activity.endDate = result.endDate;
+                scheduledActivities.add(activity.id);
+                state.schedule.push({ ...activity });
+            }
         });
 
         // Track next available date for each activity type
         const nextAvailableByType = {};
-        // Initialize with start date for each type present
-        const allTypes = [...new Set(toAutoSchedule.map(a => a.type || 'Default'))];
+        // Initialize with start date for each type present in all activities
+        const allTypes = [...new Set(activitiesToSchedule.map(a => a.type || 'Default'))];
         allTypes.forEach(type => {
             nextAvailableByType[type] = state.startDate;
         });
@@ -663,7 +669,7 @@ function updateDependenciesSelect() {
         // Also need to adjust for manually scheduled activities that may occupy time for their type
         manuallyScheduled.forEach(activity => {
             const type = activity.type || 'Default';
-            if (activity.endDate && activity.endDate.valueOf() >= nextAvailableByType[type].valueOf()) {
+            if (activity.endDate && nextAvailableByType[type] && activity.endDate.valueOf() >= nextAvailableByType[type].valueOf()) {
                 nextAvailableByType[type] = activity.endDate.plus({ days: 1 });
             }
         });
@@ -719,7 +725,12 @@ function updateDependenciesSelect() {
         }
 
         // Sort schedule by start date
-        state.schedule.sort((a, b) => a.startDate.valueOf() - b.startDate.valueOf());
+        state.schedule.sort((a, b) => {
+            // Both should have startDate, but just in case
+            const aVal = a.startDate ? a.startDate.valueOf() : 0;
+            const bVal = b.startDate ? b.startDate.valueOf() : 0;
+            return aVal - bVal;
+        });
     }
 
     // Function to check if a day is a working day (not weekend or holiday)
