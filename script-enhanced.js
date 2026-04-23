@@ -602,20 +602,23 @@ function updateDependenciesSelect() {
         // Clear existing schedule
         state.schedule = [];
         
-        // Create a copy of activities to process
-        const activitiesToSchedule = [...state.activities];
-        const scheduledActivities = new Set();
+        // Backup manually scheduled activities (those with non-null startDate)
+        const manuallyScheduledBackup = state.activities
+            .filter(a => a.startDate !== null)
+            .map(a => ({
+                id: a.id,
+                startDate: a.startDate,
+                endDate: a.endDate
+            }));
         
-        // Separate activities with manually set dates (non-null startDate)
-        const manuallyScheduled = activitiesToSchedule.filter(a => a.startDate !== null);
-        const toAutoSchedule = activitiesToSchedule.filter(a => a.startDate === null);
-
-        // Reset only auto-scheduled activities
-        toAutoSchedule.forEach(activity => {
+        // Reset all activities' dates (clean slate)
+        state.activities.forEach(activity => {
             activity.startDate = null;
             activity.endDate = null;
         });
-
+        
+        const scheduledActivities = new Set();
+        
         // Function to schedule an activity given a start date
         const scheduleActivityFromStart = (activity, startDate) => {
             let currentDate = startDate;
@@ -646,11 +649,11 @@ function updateDependenciesSelect() {
             return currentDate.plus({ days: 1 }); // Next available date for this activity's timeline
         };
 
-        // Add manually scheduled activities to schedule
-        manuallyScheduled.forEach(activity => {
-            if (activity.startDate) {
-                // Ensure the activity has both dates and they are consistent
-                const result = calculateEndDate(activity.startDate, activity);
+        // Restore manually scheduled activities (with recalculated end dates for consistency)
+        manuallyScheduledBackup.forEach(backup => {
+            const activity = state.activities.find(a => a.id === backup.id);
+            if (activity) {
+                const result = calculateEndDate(backup.startDate, activity);
                 activity.startDate = result.startDate;
                 activity.endDate = result.endDate;
                 scheduledActivities.add(activity.id);
@@ -661,21 +664,23 @@ function updateDependenciesSelect() {
         // Track next available date for each activity type
         const nextAvailableByType = {};
         // Initialize with start date for each type present in all activities
-        const allTypes = [...new Set(activitiesToSchedule.map(a => a.type || 'Default'))];
+        const allTypes = [...new Set(state.activities.map(a => a.type || 'Default'))];
         allTypes.forEach(type => {
             nextAvailableByType[type] = state.startDate;
         });
         
-        // Also need to adjust for manually scheduled activities that may occupy time for their type
-        manuallyScheduled.forEach(activity => {
+        // Adjust for manually scheduled activities that may occupy time for their type
+        state.schedule.forEach(activity => {
             const type = activity.type || 'Default';
             if (activity.endDate && nextAvailableByType[type] && activity.endDate.valueOf() >= nextAvailableByType[type].valueOf()) {
                 nextAvailableByType[type] = activity.endDate.plus({ days: 1 });
             }
         });
 
+        // Activities to auto-schedule are those not yet scheduled
+        const toAutoSchedule = state.activities.filter(a => !scheduledActivities.has(a.id));
+        
         let availableActivities = toAutoSchedule.filter(a => 
-            !scheduledActivities.has(a.id) && 
             (a.dependency == null || scheduledActivities.has(a.dependency))
         );
 
